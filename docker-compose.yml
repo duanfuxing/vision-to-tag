@@ -26,7 +26,7 @@ services:
       sh -c '
         python main.py &
         (crontab -l 2>/dev/null; echo "0 3 * * * cd /app && python clean_videos.py") | crontab -
-        crond -f'
+        service cron start && tail -f /dev/null'
 
 
   redis:
