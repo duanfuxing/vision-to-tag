@@ -1,0 +1,38 @@
+[
+    {
+        "username": "陈思伊1",
+        "password": "td123123",
+        "phone": "13811240164",
+        "email": "siyichen681@gmail.com",
+        "api_key": "AIzaSyD3zl7suWZmpSt3_rJhboqK025KbG0J3sc",
+        "daily_limit": 1500,
+        "minute_limit": 10
+    },
+    {
+        "username": "陈思伊2",
+        "password": "td123123",
+        "phone": "13811029415",
+        "email": "siyichen681@gmail.com",
+        "api_key": "AIzaSyD5AvnFDRVQxhDnU6sS6ExmreXx8pCkHQ4",
+        "daily_limit": 1500,
+        "minute_limit": 10
+    },
+    {
+        "username": "闫石1",
+        "password": "td123123",
+        "phone": "13811073041",
+        "email": "siyichen681@gmail.com",
+        "api_key": "AIzaSyBhO6v_gp_0ZQn1cBLDTKBImtTx4sIDY80",
+        "daily_limit": 1500,
+        "minute_limit": 10
+    },
+    {
+        "username": "闫石2",
+        "password": "td123123",
+        "phone": "13811071423",
+        "email": "siyichen681@gmail.com",
+        "api_key": "AIzaSyCidUK9jY1tIvq1ZQ2w-TLvVbARAk_6U7o",
+        "daily_limit": 1500,
+        "minute_limit": 10
+    }
+]

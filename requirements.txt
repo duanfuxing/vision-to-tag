@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+pydantic
+aiohttp
+python-multipart
+typing-extensions
+python-jose[cryptography]
+passlib[bcrypt]
+python-dotenv
+google-genai
+redis

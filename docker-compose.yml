@@ -1,0 +1,52 @@
+services:
+  app:
+    image: catchoco/vision-to-tag:latest
+    container_name: vision-to-tag
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "${API_PORT}:${API_PORT}"
+    env_file:
+      - .env
+    environment:
+      - REDIS_HOST=${REDIS_HOST}
+      - REDIS_PORT=${REDIS_PORT}
+    volumes:
+      - ./logs:${LOG_DIR}
+      - ./download:${DOWNLOAD_DIR}
+      - ./app:/app/app
+      - ./main.py:/app/main.py
+      - ./clean_videos.py:/app/clean_videos.py
+    depends_on:
+      - redis
+    networks:
+      - ${NETWORK_NAME:-app-network}
+    command: >
+      sh -c '
+        python main.py &
+        (crontab -l 2>/dev/null; echo "0 3 * * * cd /app && python clean_videos.py") | crontab -
+        crond -f'
+
+
+  redis:
+    image: redis:7-alpine
+    command: redis-server --requirepass ${REDIS_PASSWORD}
+    ports:
+      - "${REDIS_PORT}:${REDIS_PORT}"
+    env_file:
+      - .env
+    volumes:
+      - ./redis/data:/data
+      - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    networks:
+      - app-network
+
+
+networks:
+  app-network:
+    driver: bridge
+
+volumes:
+  redis_data:
+    driver: local
