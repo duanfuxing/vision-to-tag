@@ -10,6 +10,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     vim \ 
     git \
     wget \
+    supervisor \
     && rm -rf /var/lib/apt/lists/*
 
 # 复制依赖文件
