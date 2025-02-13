@@ -55,7 +55,7 @@ async def generate_video_tags(request: Request):
         # 验证视频URL和格式
         try:
             video_service = VideoService()
-            await video_service.validate_video_url(str(video_request.url))
+            await video_service.validate_video(str(video_request.url))
         except HTTPException as e:
             return BaseResponse[dict](
                 code=500, message="视频无法访问或视频格式错误", task_id="", data=None

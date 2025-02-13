@@ -9,3 +9,4 @@ passlib[bcrypt]
 python-dotenv
 google-genai
 redis
+pymysql

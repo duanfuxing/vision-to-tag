@@ -21,7 +21,7 @@ services:
     depends_on:
       - redis
     networks:
-      - ${NETWORK_NAME:-app-network}
+      - vision_to_tag_net
     command: >
       sh -c '
         python main.py &
@@ -31,6 +31,7 @@ services:
 
   redis:
     image: redis:7-alpine
+    container_name: vision-to-tag-redis
     command: redis-server --requirepass ${REDIS_PASSWORD}
     ports:
       - "${REDIS_PORT}:${REDIS_PORT}"
@@ -39,8 +40,30 @@ services:
     volumes:
       - ./redis/data:/data
       - ./redis/redis.conf:/usr/local/etc/redis/redis.conf
+    restart: unless-stopped
     networks:
-      - app-network
+      - vision_to_tag_net
+
+
+  mysql:
+    image: mysql:8.0
+    container_name: vision-to-tag-mysql
+    environment:
+      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_DATABASE: ${DB_DATABASE}
+      MYSQL_USER: ${DB_USERNAME}
+      MYSQL_PASSWORD: ${DB_PASSWORD}
+      TZ: Asia/Shanghai
+    ports:
+      - "3306:3306"
+    volumes:
+      - mysql_data:/var/lib/mysql
+      - ./mysql/my.cnf:/etc/mysql/conf.d/my.cnf
+      - ./mysql/data:/var/lib/mysql
+    restart: unless-stopped
+    networks:
+      - vision_to_tag_net
+    command: --default-authentication-plugin=mysql_native_password
 
 
 networks:

@@ -4,6 +4,11 @@
 VisionToTag是一个基于Google Vision API的视频标签生成服务。该服务能够自动分析视频内容，提取关键场景，并生成相应的标签描述，帮助用户更好地理解和管理视频内容。
 
 ## 系统架构
+[API Server] → [MySQL] ↔ [Redis]
+      ↑               ↓
+      └─[Consumer] → [Google 标签服务]
+                     → [ES 服务]
+                     → [文件存储]
 
 ### 核心组件
 1. **智能账号池管理系统**
@@ -119,16 +124,49 @@ python main.py
 
 ## API使用说明
 
-### 视频标签生成
+### 创建任务API
 ```http
-POST /vision_to_tag/google
+POST /api/v1/task/create
 
-Request Body:
+请求参数
+{
+    "url": "http://example.com/video.mp4", // 必填参数，视频URL
+    "uid": 123, // 可选参数，uid
+    "platform": "rpa", // 必填参数 rpa, miaobi
+    "material_id": "123456789" // 必填参数，用于区分不同的素材
+}
+
+成功响应
+{
+   "code": 200,
+   "message": "success",
+   "task_id": "550e8400-e29b-41d4-a716-446655440000",
+   "data":{
+
+   }
+}
+
+错误响应
+{
+   "code": 400,
+   "message": "Invalid video URL",
+   "task_id": null,
+   "data":{
+
+   }
+}
+```
+
+### 视频标签生成API
+```http
+POST /api/v1/vision_to_tag/google
+
+请求参数:
 {
     "url": "https://example.com/video.mp4"
 }
 
-Response:
+响应:
 {
     "code": 200,
     "message": "成功",

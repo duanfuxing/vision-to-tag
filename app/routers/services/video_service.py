@@ -15,8 +15,12 @@ class VideoService:
     def __init__(self):
         self.validation = VideoValidation()
 
-    async def validate_video_url(self, url: str) -> None:
-        """验证视频URL是否有效"""
+    async def validate_video(self, url: str) -> None:
+        """验证视频
+        1、URL是否有效
+        2、视频大小
+        3、视频格式
+        """
         ssl_context = ssl.create_default_context()
         ssl_context.check_hostname = False
         ssl_context.verify_mode = ssl.CERT_NONE
@@ -28,8 +32,18 @@ class VideoService:
                 if response.status != 200:
                     raise HTTPException(status_code=400, detail="视频URL无效")
 
+                # 验证视频大小
                 await self._validate_video_size(response)
+                # 验证视频格式
                 await self._validate_video_format(response)
+
+    async def get_video_size(self, url: str) -> int:
+        """获取视频文件大小"""
+        async with aiohttp.ClientSession() as session:
+            async with session.head(url) as response:
+                if response.status == 200:
+                    return int(response.headers.get("content-length", 0))
+                raise HTTPException(status_code=400, detail="无法获取视频大小")
 
     async def _validate_video_size(self, response) -> None:
         """验证视频大小"""
