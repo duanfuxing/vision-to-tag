@@ -57,11 +57,11 @@ services:
       MYSQL_PASSWORD: ${DB_PASSWORD}
       TZ: Asia/Shanghai
     ports:
-      - "3306:3306"
+      - "${DB_PORT}:${DB_PORT}"
     volumes:
-      - mysql_data:/var/lib/mysql
       - ./mysql/my.cnf:/etc/mysql/conf.d/my.cnf
       - ./mysql/data:/var/lib/mysql
+      - ./mysql/migrations:/etc/mysql/migrations
     restart: unless-stopped
     networks:
       - vision_net

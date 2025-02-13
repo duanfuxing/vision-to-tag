@@ -83,9 +83,6 @@ async def generate_video_tags(request: Request):
                 prompt = f.read()
             vision_response = vision_service.generate_tag(video_path, prompt)
 
-            logger.info(f"模型响应类型: {type(vision_response)}")
-            logger.info(f"模型响应内容: {vision_response}")
-
             # 解析响应为JSON格式
             if not isinstance(vision_response, str):
                 vision_response = str(vision_response)

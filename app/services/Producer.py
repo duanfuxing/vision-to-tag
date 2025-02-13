@@ -101,9 +101,11 @@ class Producer:
                 pipeline.reset()
                 # Redis操作失败，回滚MySQL事务
                 self.db.rollback()
+                logger.error(f"Redis操作失败: {str(e)}")
                 raise Exception(f"Redis操作失败: {str(e)}")
 
         except Exception as e:
             # MySQL操作失败
             self.db.rollback()
+            logger.error(f"MySQL操作失败: {str(e)}")
             return False

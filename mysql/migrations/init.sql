@@ -1,3 +1,4 @@
+-- 创建视频任务表
 CREATE TABLE `video_tasks` (
     `id` bigint unsigned NOT NULL AUTO_INCREMENT,
     `task_id` varchar(100) NOT NULL COMMENT '任务ID',

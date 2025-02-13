@@ -1,11 +1,14 @@
 from fastapi import FastAPI
 from app.routers import video
+from app.routers import tasks
+
 import os
 
 app = FastAPI(
     title="Vision To Tag API", description="Vision To Tag API service", version="1.0.0"
 )
 
+app.include_router(video.router, prefix="/api/v1")
 app.include_router(video.router, prefix="/api/v1")
 
 if __name__ == "__main__":
