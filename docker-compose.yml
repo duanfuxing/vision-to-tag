@@ -18,12 +18,14 @@ services:
       - ./app:/app/app
       - ./main.py:/app/main.py
       - ./clean_videos.py:/app/clean_videos.py
+      - ./supervisor:/etc/supervisor/conf.d
     depends_on:
       - redis
     networks:
       - vision_net
     command: >
       sh -c '
+        supervisord -c /etc/supervisor/conf.d/consumer.conf &
         python main.py &
         (crontab -l 2>/dev/null; echo "0 3 * * * cd /app && python clean_videos.py") | crontab -
         service cron start && tail -f /dev/null'
@@ -49,7 +51,7 @@ services:
     image: mysql:8.0
     container_name: vision-to-tag-mysql
     environment:
-      MYSQL_ROOT_PASSWORD: ${DB_PASSWORD}
+      MYSQL_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
       MYSQL_DATABASE: ${DB_DATABASE}
       MYSQL_USER: ${DB_USERNAME}
       MYSQL_PASSWORD: ${DB_PASSWORD}
