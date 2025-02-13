@@ -34,5 +34,59 @@
         "api_key": "AIzaSyCidUK9jY1tIvq1ZQ2w-TLvVbARAk_6U7o",
         "daily_limit": 1500,
         "minute_limit": 10
+    },
+    {
+        "username": "莉丽1",
+        "password": "td123123",
+        "phone": "13910252554",
+        "email": "ll5784789@gmail.com",
+        "api_key": "AIzaSyCtwOVTg1XR6k6uoTvIYLJxm6bSdoAFhvg",
+        "daily_limit": 1500,
+        "minute_limit": 10
+    },
+    {
+        "username": "莉丽2",
+        "password": "td123123",
+        "phone": "13811209471",
+        "email": "li1264577@gmail.com",
+        "api_key": "AIzaSyC66VVhp5-g2e0ihhH4jcXgp3XA02OugO8",
+        "daily_limit": 1500,
+        "minute_limit": 10
+    },
+    {
+        "username": "莉丽3271",
+        "password": "td123123",
+        "phone": "13811204870",
+        "email": "lli62057919@gmail.com",
+        "api_key": "AIzaSyD-pvomAWo9Fkjd_fOFd_RiymJpKNvbUiE",
+        "daily_limit": 1500,
+        "minute_limit": 10
+    },
+    {
+        "username": "莉丽5144",
+        "password": "td123123",
+        "phone": "13910255144",
+        "email": "li13910255144@gmail.com",
+        "api_key": "AIzaSyDWWMweYYICnB3aW3exMT9iOAIf-9FkK6M",
+        "daily_limit": 1500,
+        "minute_limit": 10
+    },
+    {
+        "username": "莉丽9074",
+        "password": "td123123",
+        "phone": "13811169074",
+        "email": "li13811169074@gmail.com",
+        "api_key": "AIzaSyAGJRHMZi90444Nskf5pYaSHN7PGtRpMsw",
+        "daily_limit": 1500,
+        "minute_limit": 10
+    },
+    {
+        "username": "莉丽9154",
+        "password": "td123123",
+        "phone": "13811039154",
+        "email": "li13811039154@gmail.com",
+        "api_key": "AIzaSyAZcT5sSCHTlhGOBOPugd9p7j_NJDWkK14",
+        "daily_limit": 1500,
+        "minute_limit": 10
     }
 ]
