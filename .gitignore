@@ -1,3 +1,9 @@
+# redis
+redis/data
+
+# mysql
+mysql/data
+
 # Python
 __pycache__/
 *.py[cod]
