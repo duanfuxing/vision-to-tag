@@ -20,8 +20,6 @@ services:
       - ./main.py:/app/main.py
       - ./clean_videos.py:/app/clean_videos.py
       - ./supervisor:/etc/supervisor/conf.d
-      - /etc/localtime:/etc/localtime
-      - /etc/timezone:/etc/timezone
     depends_on:
       - redis
     networks:
