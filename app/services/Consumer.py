@@ -22,7 +22,6 @@ class Consumer:
         self.redis = redis
         self.redis.select(1)  # 切换到Redis 1号数据库
         self.video_service = VideoService()  # 初始化视频服务
-        self.vision_service = GoogleVisionService()  # 初始化Google视频标签服务
         self.max_retries = 10  # 最大重试次数
         self.lock_timeout = 300  # 任务锁超时时间（秒）
 
@@ -91,7 +90,8 @@ class Consumer:
 
         vision_start = time.time()
         try:
-            vision_response = self.vision_service.generate_tag(video_path, prompt)
+            google_vision_service = GoogleVisionService()  # 初始化Google视频标签服务
+            vision_response = google_vision_service.generate_tag(video_path, prompt)
             if not isinstance(vision_response, str):
                 vision_response = str(vision_response)
         except Exception as e:
