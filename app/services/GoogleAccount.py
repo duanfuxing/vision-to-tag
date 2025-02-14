@@ -61,8 +61,8 @@ class GoogleAccount:
                     k.decode("utf-8"): v.decode("utf-8")
                     for k, v in account_info.items()
                 }
-                quota_daily = int(account_info.get("quota_daily", 1500))
-                minute_limit = int(account_info.get("minute_limit", 10))
+                quota_daily = int(account_info.get("quota_daily", 1200))
+                minute_limit = int(account_info.get("minute_limit", 8))
 
                 # 检查账号状态
                 if account_info.get("status") != "active":

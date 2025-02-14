@@ -5,8 +5,8 @@
         "phone": "13811240164",
         "email": "siyichen681@gmail.com",
         "api_key": "AIzaSyD3zl7suWZmpSt3_rJhboqK025KbG0J3sc",
-        "daily_limit": 1500,
-        "minute_limit": 10
+        "daily_limit": 1200,
+        "minute_limit": 8
     },
     {
         "username": "陈思伊2",
@@ -14,8 +14,8 @@
         "phone": "13811029415",
         "email": "siyichen681@gmail.com",
         "api_key": "AIzaSyD5AvnFDRVQxhDnU6sS6ExmreXx8pCkHQ4",
-        "daily_limit": 1500,
-        "minute_limit": 10
+        "daily_limit": 1200,
+        "minute_limit": 8
     },
     {
         "username": "闫石1",
@@ -23,8 +23,8 @@
         "phone": "13811073041",
         "email": "siyichen681@gmail.com",
         "api_key": "AIzaSyBhO6v_gp_0ZQn1cBLDTKBImtTx4sIDY80",
-        "daily_limit": 1500,
-        "minute_limit": 10
+        "daily_limit": 1200,
+        "minute_limit": 8
     },
     {
         "username": "闫石2",
@@ -32,8 +32,8 @@
         "phone": "13811071423",
         "email": "siyichen681@gmail.com",
         "api_key": "AIzaSyCidUK9jY1tIvq1ZQ2w-TLvVbARAk_6U7o",
-        "daily_limit": 1500,
-        "minute_limit": 10
+        "daily_limit": 1200,
+        "minute_limit": 8
     },
     {
         "username": "莉丽1",
@@ -41,8 +41,8 @@
         "phone": "13910252554",
         "email": "ll5784789@gmail.com",
         "api_key": "AIzaSyCtwOVTg1XR6k6uoTvIYLJxm6bSdoAFhvg",
-        "daily_limit": 1500,
-        "minute_limit": 10
+        "daily_limit": 1200,
+        "minute_limit": 8
     },
     {
         "username": "莉丽2",
@@ -50,8 +50,8 @@
         "phone": "13811209471",
         "email": "li1264577@gmail.com",
         "api_key": "AIzaSyC66VVhp5-g2e0ihhH4jcXgp3XA02OugO8",
-        "daily_limit": 1500,
-        "minute_limit": 10
+        "daily_limit": 1200,
+        "minute_limit": 8
     },
     {
         "username": "莉丽3271",
@@ -59,8 +59,8 @@
         "phone": "13811204870",
         "email": "lli62057919@gmail.com",
         "api_key": "AIzaSyD-pvomAWo9Fkjd_fOFd_RiymJpKNvbUiE",
-        "daily_limit": 1500,
-        "minute_limit": 10
+        "daily_limit": 1200,
+        "minute_limit": 8
     },
     {
         "username": "莉丽5144",
@@ -68,8 +68,8 @@
         "phone": "13910255144",
         "email": "li13910255144@gmail.com",
         "api_key": "AIzaSyDWWMweYYICnB3aW3exMT9iOAIf-9FkK6M",
-        "daily_limit": 1500,
-        "minute_limit": 10
+        "daily_limit": 1200,
+        "minute_limit": 8
     },
     {
         "username": "莉丽9074",
@@ -77,8 +77,8 @@
         "phone": "13811169074",
         "email": "li13811169074@gmail.com",
         "api_key": "AIzaSyAGJRHMZi90444Nskf5pYaSHN7PGtRpMsw",
-        "daily_limit": 1500,
-        "minute_limit": 10
+        "daily_limit": 1200,
+        "minute_limit": 8
     },
     {
         "username": "莉丽9154",
@@ -86,7 +86,7 @@
         "phone": "13811039154",
         "email": "li13811039154@gmail.com",
         "api_key": "AIzaSyAZcT5sSCHTlhGOBOPugd9p7j_NJDWkK14",
-        "daily_limit": 1500,
-        "minute_limit": 10
+        "daily_limit": 1200,
+        "minute_limit": 8
     }
 ]

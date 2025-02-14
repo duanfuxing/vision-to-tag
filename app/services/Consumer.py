@@ -22,7 +22,7 @@ class Consumer:
         self.redis = redis
         self.redis.select(1)  # 切换到Redis 1号数据库
         self.video_service = VideoService()  # 初始化视频服务
-        self.max_retries = 10  # 最大重试次数
+        self.max_retries = 30  # 最大重试次数
         self.lock_timeout = 300  # 任务锁超时时间（秒）
 
     async def get_task(self) -> Optional[str]:
