@@ -34,19 +34,35 @@ def retry_on_connection_error(max_retries=3, delay=1):
                     return func(*args, **kwargs)
 
                 except (OperationalError, StatementError) as e:
-                    last_error = e
-                    retries += 1
+                    error_msg = str(e).lower()
+                    # 只对特定的连接错误进行重试
+                    if any(
+                        msg in error_msg
+                        for msg in [
+                            "lost connection",
+                            "connection refused",
+                            "connection timed out",
+                            "broken pipe",
+                            "connection reset",
+                        ]
+                    ):
+                        last_error = e
+                        retries += 1
 
-                    if retries <= max_retries:
-                        logger.warning(
-                            f"数据库连接错误，正在进行第{retries}次重试。错误信息: {str(e)}"
-                        )
-                        time.sleep(delay)
+                        if retries <= max_retries:
+                            logger.warning(
+                                f"数据库连接错误，正在进行第{retries}次重试。错误信息: {str(e)}"
+                            )
+                            time.sleep(delay)
+                        else:
+                            logger.error(
+                                f"数据库操作失败，已达到最大重试次数({max_retries})。错误信息: {str(e)}"
+                            )
+                            raise last_error
                     else:
-                        logger.error(
-                            f"数据库操作失败，已达到最大重试次数({max_retries})。错误信息: {str(e)}"
-                        )
-                        raise last_error
+                        # 对于非连接错误，直接抛出异常
+                        logger.error(f"数据库操作失败，非连接错误: {str(e)}")
+                        raise e
 
             return None
 
