@@ -241,6 +241,8 @@ class Consumer:
 
                 # 生成视频标签
                 tags = await self.generate_video_tags(task_id, video_path)
+                logger.info(f"【Consumer】- 生成视频标签成功: {tags}")
+                logger.info(f"【Consumer】- 开始同步标签到ES: task_info={task_info}")
 
                 # 同步标签到ES
                 await self.sync_tags_to_es(task_id, task_info["material_id"], tags)
