@@ -12,7 +12,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     git \
     wget \
     supervisor \
+    tzdata \
     && rm -rf /var/lib/apt/lists/*
+
+# 设置时区
+ENV TZ=Asia/Shanghai
 
 # 复制依赖文件
 COPY requirements.txt .
