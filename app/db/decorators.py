@@ -24,19 +24,24 @@ def retry_on_connection_error(max_retries=3, delay=1):
                 try:
                     # 如果第一个参数是self且包含db属性，则重置其db会话
                     if args and hasattr(args[0], "db"):
-                        if retries > 0:  # 只在重试时重置会话
-                            try:
-                                args[0].db.close()
-                            except:
-                                pass
-                            args[0].db = SessionLocal()
+                        # 每次尝试前都重置会话，确保连接状态
+                        try:
+                            args[0].db.close()
+                        except:
+                            pass
+                        args[0].db = SessionLocal()
 
                     return func(*args, **kwargs)
 
                 except (OperationalError, StatementError) as e:
                     error_msg = str(e).lower()
-                    # 只对特定的连接错误进行重试
-                    if any(
+                    error_code = getattr(e, "orig", None)
+                    error_code = (
+                        getattr(error_code, "args", [None])[0] if error_code else None
+                    )
+
+                    # 检查MySQL特定错误码或连接错误消息
+                    is_connection_error = any(
                         msg in error_msg
                         for msg in [
                             "lost connection",
@@ -45,7 +50,12 @@ def retry_on_connection_error(max_retries=3, delay=1):
                             "broken pipe",
                             "connection reset",
                         ]
-                    ):
+                    ) or error_code in [
+                        2006,
+                        2013,
+                    ]  # MySQL error codes for connection issues
+
+                    if is_connection_error:
                         last_error = e
                         retries += 1
 

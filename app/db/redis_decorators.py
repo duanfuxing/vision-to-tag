@@ -24,13 +24,12 @@ def retry_on_redis_error(max_retries=3, delay=1):
                 try:
                     # 如果第一个参数是self且包含redis属性，则重置其redis连接
                     if args and hasattr(args[0], "redis"):
-                        if retries > 0:  # 只在重试时重置连接
-                            try:
-                                args[0].redis.close()
-                            except:
-                                pass
-                            args[0].redis = get_redis_client()
-                            args[0].redis.select(1)  # 切换到Redis 1号数据库
+                        try:
+                            args[0].redis.close()
+                        except:
+                            pass
+                        args[0].redis = get_redis_client()
+                        args[0].redis.select(1)  # 切换到Redis 1号数据库
 
                     return func(*args, **kwargs)
 
