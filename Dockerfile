@@ -36,7 +36,7 @@ ENV PYTHONPATH=/app
 ENV PYTHONUNBUFFERED=1
 
 # 暴露端口
-EXPOSE ${API_PORT:-8000}
+EXPOSE 6011
 
 # 启动命令
 CMD ["python", "main.py"]
