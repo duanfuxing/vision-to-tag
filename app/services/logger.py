@@ -51,7 +51,7 @@ class Logger:
 
         # 设置日志格式
         formatter = logging.Formatter(
-            "%(asctime)s - %(name)s - %(levelname)s - %(filename)s:%(lineno)d - %(message)s"
+            "%(asctime)s - %(name)s - %(levelname)s - %(pathname)s:%(lineno)d - %(message)s"
         )
         file_handler.setFormatter(formatter)
 
@@ -65,19 +65,19 @@ class Logger:
             self.logger.addHandler(console_handler)
 
     def debug(self, message):
-        self.logger.debug(message)
+        self.logger.debug(message, stacklevel=2)
 
     def info(self, message):
-        self.logger.info(message)
+        self.logger.info(message, stacklevel=2)
 
     def warning(self, message):
-        self.logger.warning(message)
+        self.logger.warning(message, stacklevel=2)
 
     def error(self, message):
-        self.logger.error(message)
+        self.logger.error(message, stacklevel=2)
 
     def critical(self, message):
-        self.logger.critical(message)
+        self.logger.critical(message, stacklevel=2)
 
 
 # 创建全局logger实例

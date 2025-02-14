@@ -21,7 +21,7 @@ class GoogleAccount:
             f"redis://:{redis_password}@{os.getenv('REDIS_HOST', 'localhost')}:{os.getenv('REDIS_PORT', '6379')}/0"
         )
         self.account_lock = threading.Lock()
-        self.logger.info("初始化Google账号管理器")
+        self.logger.info("【Google】- 初始化Google账号管理器")
 
     def get_available_account(self):
         """获取一个可用的账号
@@ -32,14 +32,14 @@ class GoogleAccount:
         """
         # 检查是否处于导入锁定状态
         if self.redis_client.get("google_account:import_lock_str"):
-            self.logger.warning("账号池处于导入锁定状态，暂时无法获取账号")
+            self.logger.warning("【Google】- 账号池处于导入锁定状态，暂时无法获取账号")
             return None
 
         with self.account_lock:
             # 获取所有账号
             phones = self.redis_client.smembers("google_account:phones_set")
             if not phones:
-                self.logger.warning("Redis中没有找到任何账号信息")
+                self.logger.warning("【Google】- Redis中没有找到任何账号信息")
                 return None
 
             now = datetime.now()
@@ -106,9 +106,9 @@ class GoogleAccount:
                 )  # 2分钟后过期
 
                 self.logger.info(
-                    f"获取到可用账号，API密钥：{account_info['api_key'][-5:]}，今日已使用：{used_today + 1}次"
+                    f"【Google】- 获取到可用账号，API密钥：{account_info['api_key'][-5:]}，今日已使用：{used_today + 1}次"
                 )
                 return account_info
 
-            self.logger.warning("没有找到可用的账号")
+            self.logger.warning("【Google】- 没有找到可用的账号")
             return None

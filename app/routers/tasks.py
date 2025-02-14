@@ -78,10 +78,10 @@ async def task_create(request: Request):
                 code=code, message=message, task_id=task_id, data=None
             )
 
-        logger.inf(f"进入任务创建")
+        logger.info(f"进入任务创建")
 
         # 调用Producer.py，创建队列任务
-        producer = Producer(request.app.state.db, request.app.state.redis)
+        producer = Producer()
         result = await producer.dispatch(task_id, params)
 
         if not result:

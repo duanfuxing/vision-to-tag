@@ -1,6 +1,6 @@
 services:
   app:
-    image: catchoco/vision-to-tag:latest
+    image: catchoco/vision-to-tag
     container_name: vision-to-tag
     build:
       context: .
@@ -16,6 +16,7 @@ services:
       - ./logs:${LOG_DIR}
       - ./download:${DOWNLOAD_DIR}
       - ./app:/app/app
+      - ./.env:/app/.env
       - ./main.py:/app/main.py
       - ./clean_videos.py:/app/clean_videos.py
       - ./supervisor:/etc/supervisor/conf.d

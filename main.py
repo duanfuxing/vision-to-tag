@@ -9,7 +9,7 @@ app = FastAPI(
 )
 
 app.include_router(video.router, prefix="/api/v1")
-app.include_router(video.router, prefix="/api/v1")
+app.include_router(tasks.router, prefix="/api/v1")
 
 if __name__ == "__main__":
     import uvicorn
