@@ -68,7 +68,19 @@ class GoogleAccount:
                 if account_info.get("status") != "active":
                     continue
 
-                # 检查每日使用量
+                # 检查每日使用量并在需要时重置
+                last_used_date = self.redis_client.hget(
+                    f"google_account:last_used_date:{phone}", "date"
+                )
+                used_today = 0
+
+                if last_used_date and last_used_date.decode("utf-8") != today:
+                    # 如果最后使用日期不是今天，重置计数
+                    self.redis_client.delete(f"google_account:daily_hash:{phone}")
+                    self.redis_client.hset(
+                        f"google_account:last_used_date:{phone}", "date", today
+                    )
+
                 used_today = int(
                     self.redis_client.hget(f"google_account:daily_hash:{phone}", today)
                     or 0
@@ -97,10 +109,12 @@ class GoogleAccount:
                     {str(current_timestamp): current_timestamp},
                 )
 
-                # 设置过期时间
-                self.redis_client.expire(
-                    f"google_account:daily_hash:{phone}", 86400 * 2
-                )  # 2天后过期
+                # 更新最后使用日期
+                self.redis_client.hset(
+                    f"google_account:last_used_date:{phone}", "date", today
+                )
+
+                # 设置分钟级请求窗口过期时间
                 self.redis_client.expire(
                     f"google_account:minute_window_zset:{phone}", 120
                 )  # 2分钟后过期
