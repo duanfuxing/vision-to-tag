@@ -104,7 +104,8 @@ class GoogleVisionService:
         # 请求模型
         try:
             response = self.client.models.generate_content(
-                model="gemini-2.0-pro-exp-02-05",
+                # model="gemini-2.0-pro-exp-02-05",
+                model="gemini-2.0-flash",
                 contents=[video_file, "对视频内容进行理解，并按照规则生成标签"],
                 config=types.GenerateContentConfig(
                     system_instruction=prompt,
