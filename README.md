@@ -168,7 +168,7 @@ POST /api/v1/task/create
     "url": "http://example.com/video.mp4", // 必填参数，视频URL
     "uid": 123, // 可选参数，uid
     "platform": "rpa", // 必填参数 rpa, miaobi
-    "material_id": "123456789" // 必填参数，用于区分不同的素材
+    "material_id": [1,2] // 必填参数，用于区分不同的素材
 }
 
 成功响应

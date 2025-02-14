@@ -14,6 +14,7 @@ class Task(Base):
     status = Column(String(20), nullable=False, default="pending")
     message = Column(Text)
     tags = Column(JSON)
+    material_id = Column(JSON)
     processed_start = Column(DateTime)
     processed_end = Column(DateTime)
     created_at = Column(DateTime, nullable=False, server_default=func.now())

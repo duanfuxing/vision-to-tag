@@ -8,6 +8,7 @@ CREATE TABLE `video_tasks` (
     `status` varchar(20) NOT NULL DEFAULT 'pending' COMMENT '任务状态 pending:待处理, processing:处理中, completed:已完成, failed:失败',
     `message` text COMMENT '错误信息',
     `tags` json DEFAULT NULL COMMENT '视频标签',
+    `material_id` json DEFAULT NULL COMMENT '素材ID',
     `processed_start` timestamp NULL DEFAULT NULL COMMENT '处理完成时间',
     `processed_end` timestamp NULL DEFAULT NULL COMMENT '处理完成时间',
     `created_at` timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP,

@@ -35,6 +35,13 @@ def validate_required_fields(params: dict) -> Tuple[int, str]:
     if params.get("platform") not in ["rpa", "miaobi"]:
         return 400, "platform 参数值必须是 'rpa' 或 'miaobi'"
 
+    material_id = params.get("material_id")
+    if not material_id:
+        return 400, "material_id 数组不能为空"
+
+    if not isinstance(material_id, list):
+        return 400, "material_id 必须是数组格式"
+
     return 200, ""
 
 
