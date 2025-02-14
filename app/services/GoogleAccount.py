@@ -112,3 +112,25 @@ class GoogleAccount:
 
             self.logger.warning("【Google】- 没有找到可用的账号")
             return None
+
+    def disable_account(self, account_info):
+        """将账号标记为不可用状态
+
+        Args:
+            account_info: 包含账号信息的字典
+        """
+        if not account_info or "phone" not in account_info:
+            self.logger.error("【Google】- 无效的账号信息")
+            return
+
+        try:
+            phone = account_info["phone"]
+            # 更新账号状态为不可用
+            self.redis_client.hset(
+                f"google_account:info_hash:{phone}", "status", "disabled"
+            )
+            self.logger.info(
+                f"【Google】- 已将账号 {account_info['api_key'][-5:]} 标记为不可用"
+            )
+        except Exception as e:
+            self.logger.error(f"【Google】- 禁用账号失败: {str(e)}")

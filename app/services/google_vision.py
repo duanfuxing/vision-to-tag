@@ -119,7 +119,17 @@ class GoogleVisionService:
             return response.text
 
         except Exception as e:
-            logger.error(f"【Google】- 模型请求失败: {str(e)}")
+            error_message = str(e)
+            if "RESOURCE_EXHAUSTED" in error_message:
+                # 获取当前使用的账号
+                current_account = self.account_manager.get_available_account()
+                if current_account:
+                    # 标记账号为不可用
+                    self.account_manager.disable_account(current_account)
+                    logger.warning(
+                        f"【Google】- API密钥 {current_account['api_key'][-5:]} 已超出配额限制，已标记为不可用"
+                    )
+            logger.error(f"【Google】- 模型请求失败: {error_message}")
             raise
         finally:
             # 清理文件
