@@ -21,6 +21,7 @@ engine = create_engine(
     DATABASE_URL,
     poolclass=QueuePool,
     pool_size=5,
+    pool_pre_ping=True,
     max_overflow=10,
     pool_timeout=30,
     pool_recycle=1800,
