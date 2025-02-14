@@ -1,7 +1,7 @@
-# VisionToTag 视频标签生成服务
+# Vision-to-tag 视频标签生成服务
 
 ## 项目介绍
-VisionToTag是一个基于Google Vision API的视频标签生成服务。该服务能够自动分析视频内容，提取关键场景，并生成相应的标签描述，帮助用户更好地理解和管理视频内容。
+Vision-to-tag是一个基于Google的gemini-2.0-pro-exp-02-05模型实现的视频标签生成服务。该服务能够自动分析视频内容，提取关键场景，并生成相应的标签描述，数据提交至ES服务。
 
 ## 系统架构
 [API Server] → [MySQL] ↔ [Redis]
@@ -25,14 +25,14 @@ VisionToTag是一个基于Google Vision API的视频标签生成服务。该服�
    - 标签生成处理
    - 缓存自动清理
 
-### 关键特性
-- 高可用性：多账号池确保服务持续可用
-- 智能调度：根据配额和使用情况自动选择最优账号
-- 安全可靠：完整的异常处理和重试机制
-- 可扩展性：支持动态添加API账号
-- 自动化维护：定期清理过期缓存文件
+3. **队列管理服务**
+   - 任务调度管理
+   - 任务状态监控
+   - 任务重试机制
+   - 任务超时处理
+   - 任务失败处理
 
-### Redis数据结构
+### Google账号-Redis数据结构
 1. **账号基本信息 (Hash)**
    - 键名格式：`google_account:{api_key}:info`
    - 字段说明：
@@ -64,10 +64,44 @@ VisionToTag是一个基于Google Vision API的视频标签生成服务。该服�
    - 键名：`google_accounts:import_lock`
    - 用途：防止导入过程中的并发访问
 
+
+### Redis数据结构设计
+1. **任务队列（List）**
+   - 键名：`task_queue`
+   - 类型：List
+   - 用途：存储待处理的任务ID
+   - 数据示例：["task-001", "task-002", ...]
+
+2. **任务详情（Hash）**
+   - 键名格式：`task_info:{taskId}`
+   - 类型：Hash
+   - 字段说明：
+     - url: 视频URL
+     - status: 任务状态（pending/processing/completed/failed）
+     - retry_count: 重试次数
+     - created_at: 创建时间戳
+   - 过期时间：7天
+
+3. **失败任务队列（List）**
+   - 键名：`task_queue_failed`
+   - 类型：List
+   - 用途：存储处理失败的任务ID
+   - 数据示例：["failed-task-001", "failed-task-002", ...]
+
+4. **任务锁（String）**
+   - 键名格式：`task_queue_lock:{taskId}`
+   - 类型：String
+   - 用途：任务处理锁，防止重复处理
+   - 过期时间：5分钟
+
 ## 配置说明
 
-### API密钥配置
-1. 在`app/config`目录下创建`api_keys.json`文件
+### 环境变量配置
+1. 复制`.env.example`为`.env`
+2. 配置必要的环境变量
+
+### Google API密钥配置
+1. 在`app/config`目录下创建`google_account.json`文件
 2. 按以下格式配置API密钥：
 ```json
 [
@@ -83,7 +117,7 @@ VisionToTag是一个基于Google Vision API的视频标签生成服务。该服�
 ]
 ```
 
-### 账号导入说明
+### Google 账号导入说明
 1. 准备包含账号信息的JSON文件，确保包含以下必填字段：
    - api_key: Google API密钥
    - daily_limit: 每日请求配额限制
@@ -95,12 +129,10 @@ VisionToTag是一个基于Google Vision API的视频标签生成服务。该服�
 
 2. 使用导入工具导入账号：
 ```bash
-python import_accounts.py --file your_accounts.json
+python import_accounts.py --file google_accounts.json
 ```
 
-### 环境变量配置
-1. 复制`.env.example`为`.env`
-2. 配置必要的环境变量
+
 
 ## 部署说明
 
@@ -118,8 +150,11 @@ docker-compose up -d
 # 安装依赖
 pip install -r requirements.txt
 
-# 启动服务
+# 启动API服务
 python main.py
+
+# 启动队列消费服务
+python app/services/consumer.py
 ```
 
 ## API使用说明
@@ -178,11 +213,8 @@ POST /api/v1/vision_to_tag/google
 ```
 
 ## 限制说明
-1. 视频格式支持：MP4
-2. 视频大小限制：根据配置调整
-3. API调用限制：
-   - 每个账号每日配额限制（默认1500次）
-   - 每分钟最多10次请求
+1. 视频格式支持：mp4、avi、mov、wav、3gpp、x-flv
+2. 视频大小限制：50MB
 
 ## 缓存管理
 系统提供自动化的视频缓存清理功能：
