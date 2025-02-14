@@ -12,6 +12,8 @@ from app.services.logger import get_logger
 import json
 import os
 import requests
+from app.db.decorators import retry_on_connection_error
+from app.db.redis_decorators import retry_on_redis_error
 
 logger = get_logger()
 
@@ -25,20 +27,24 @@ class Consumer:
         self.max_retries = 30  # 最大重试次数
         self.lock_timeout = 300  # 任务锁超时时间（秒）
 
+    @retry_on_redis_error(max_retries=3, delay=1)
     async def get_task(self) -> Optional[str]:
         """从Redis队列中获取任务"""
         return self.redis.rpop("task_queue")
 
+    @retry_on_redis_error(max_retries=3, delay=1)
     async def acquire_lock(self, task_id: str) -> bool:
         """获取任务锁"""
         lock_key = f"task_queue_lock:{task_id}"
         return bool(self.redis.set(lock_key, "1", ex=self.lock_timeout, nx=True))
 
+    @retry_on_redis_error(max_retries=3, delay=1)
     async def release_lock(self, task_id: str):
         """释放任务锁"""
         lock_key = f"task_queue_lock:{task_id}"
         self.redis.delete(lock_key)
 
+    @retry_on_connection_error(max_retries=3, delay=1)
     async def update_task_status(self, task_id: str, status: str, message: str = None):
         """更新任务状态"""
         try:
@@ -61,11 +67,13 @@ class Consumer:
             logger.error(f"【Consumer】- 更新任务状态失败 {task_id}: {str(e)}")
             raise
 
+    @retry_on_redis_error(max_retries=3, delay=1)
     async def increment_retry_count(self, task_id: str) -> int:
         """增加重试次数"""
         retry_key = f"task_info:{task_id}"
         return int(self.redis.hincrby(retry_key, "retry_count", 1))
 
+    @retry_on_redis_error(max_retries=3, delay=1)
     async def move_to_failed_queue(self, task_id: str):
         """将任务移动到失败队列"""
         self.redis.lpush("task_queue_failed", task_id)
@@ -178,6 +186,7 @@ class Consumer:
             logger.error(error_msg)
             raise Exception(error_msg)
 
+    @retry_on_connection_error(max_retries=3, delay=1)
     async def update_mysql_tags(self, task_id: str, tags: dict) -> None:
         """更新MySQL中的标签"""
         update_start = time.time()

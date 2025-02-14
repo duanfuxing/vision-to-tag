@@ -6,6 +6,8 @@ from sqlalchemy.orm import Session
 from app.models.task import Task
 from app.db.session import SessionLocal
 from app.db.redis import get_redis_client
+from app.db.decorators import retry_on_connection_error
+from app.db.redis_decorators import retry_on_redis_error
 import json
 
 # 配置日志记录器
@@ -18,6 +20,7 @@ class Producer:
         self.redis = get_redis_client()
         self.redis.select(1)  # 切换到Redis 1号数据库
 
+    @retry_on_connection_error(max_retries=3, delay=1)
     async def dispatch(self, task_id: str, task_data: Dict[Any, Any]) -> bool:
         """创建视频处理任务"""
         start_time = time.time()
