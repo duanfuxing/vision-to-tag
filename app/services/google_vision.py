@@ -20,9 +20,9 @@ class GoogleVisionService:
         # self.account_manager = GoogleAccount()
 
         # 初始化Google Vision API客户端
+        self.api_key = os.getenv("API_KEY", "")
         self.client = None
         self._init_client()
-        self.api_key = os.getenv("API_KEY", "")
 
     def _init_client(self):
         """初始化Google API客户端"""
