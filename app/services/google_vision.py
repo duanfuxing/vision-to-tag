@@ -16,7 +16,7 @@ logger = get_logger()
 class GoogleVisionService:
     def __init__(self):
         # 初始化账号管理器
-        self.account_manager = GoogleAccount()
+        # self.account_manager = GoogleAccount()
 
         # 初始化Google Vision API客户端
         self.client = None
@@ -26,16 +26,19 @@ class GoogleVisionService:
         """初始化Google API客户端"""
         try:
             # 获取可用账号
-            account = self.account_manager.get_available_account()
+            # account = self.account_manager.get_available_account()
             # 检查是否有可用的API密钥
-            if not account or not account["api_key"]:
-                logger.error("【Google】- 没有可用的API密钥")
-                raise Exception("【Google】- 没有可用的API密钥")
+            # if not account or not account["api_key"]:
+            #     logger.error("【Google】- 没有可用的API密钥")
+            #     raise Exception("【Google】- 没有可用的API密钥")
 
             # 创建客户端
-            self.client = genai.Client(api_key=account["api_key"])
+            # self.client = genai.Client(api_key=account["api_key"])
+            self.client = genai.Client(
+                api_key="AIzaSyAkgXRy00lC9ANDq9UvOMg0OzixWufmIN8"
+            )
             logger.info(
-                f"【Google】- 成功初始化Google API客户端，使用API密钥：{account['api_key'][-5:]}"
+                f"【Google】- 成功初始化Google API客户端，使用付费API密钥：AIzaSyAkgXRy00lC9ANDq9UvOMg0OzixWufmIN8}"
             )
 
         except Exception as e:
@@ -121,15 +124,15 @@ class GoogleVisionService:
 
         except Exception as e:
             error_message = str(e)
-            if "RESOURCE_EXHAUSTED" in error_message:
-                # 获取当前使用的账号
-                current_account = self.account_manager.get_available_account()
-                if current_account:
-                    # 标记账号为不可用
-                    self.account_manager.disable_account(current_account)
-                    logger.warning(
-                        f"【Google】- API密钥 {current_account['api_key'][-5:]} 已超出配额限制，已标记为不可用"
-                    )
+            # if "RESOURCE_EXHAUSTED" in error_message:
+            #     # 获取当前使用的账号
+            #     current_account = self.account_manager.get_available_account()
+            #     if current_account:
+            #         # 标记账号为不可用
+            #         self.account_manager.disable_account(current_account)
+            #         logger.warning(
+            #             f"【Google】- API密钥 {current_account['api_key'][-5:]} 已超出配额限制，已标记为不可用"
+            #         )
             logger.error(f"【Google】- 模型请求失败: {error_message}")
             raise
         finally:
