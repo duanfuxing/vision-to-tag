@@ -8,6 +8,7 @@ from datetime import datetime
 from typing import List, Dict
 from .GoogleAccount import GoogleAccount
 from .logger import get_logger
+import os
 
 # 初始化logger
 logger = get_logger()
@@ -21,6 +22,7 @@ class GoogleVisionService:
         # 初始化Google Vision API客户端
         self.client = None
         self._init_client()
+        self.api_key = os.getenv("API_KEY", "")
 
     def _init_client(self):
         """初始化Google API客户端"""
@@ -32,13 +34,15 @@ class GoogleVisionService:
             #     logger.error("【Google】- 没有可用的API密钥")
             #     raise Exception("【Google】- 没有可用的API密钥")
 
+            if self.api_key == "":
+                logger.error("【Google】- 没有可用的API密钥")
+                raise Exception("【Google】- 没有可用的API密钥")
+
             # 创建客户端
             # self.client = genai.Client(api_key=account["api_key"])
-            self.client = genai.Client(
-                api_key="AIzaSyAkgXRy00lC9ANDq9UvOMg0OzixWufmIN8"
-            )
+            self.client = genai.Client(api_key=self.api_key)
             logger.info(
-                f"【Google】- 成功初始化Google API客户端，使用付费API密钥：AIzaSyAkgXRy00lC9ANDq9UvOMg0OzixWufmIN8}"
+                f"【Google】- 成功初始化Google API客户端，使用付费API密钥：{self.api_key}"
             )
 
         except Exception as e:
