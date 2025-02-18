@@ -1,6 +1,8 @@
 from pydantic import BaseModel, HttpUrl
 from typing import Optional, List, TypeVar, Generic
 from datetime import datetime
+import os
+
 
 T = TypeVar("T")
 
@@ -23,7 +25,7 @@ class VideoRequest(BaseModel):
 class VideoValidation(BaseModel):
     """视频验证参数"""
 
-    max_size_mb: int = 50  # 最大文件大小（MB）
+    max_size_mb: int = os.getenv("MAX_VIDEO_SIZE_MB", 100)  # 最大文件大小（MB）
     allowed_formats: List[str] = [
         "mp4",
         "avi",
