@@ -50,7 +50,8 @@ class VideoService:
         content_length = response.headers.get("content-length")
         if content_length:
             size_mb = int(content_length) / (1024 * 1024)
-            if size_mb > self.validation.max_size_mb:
+            max_size = float(self.validation.max_size_mb)  # 将 max_size_mb 转换为浮点数
+            if size_mb > max_size:
                 raise HTTPException(
                     status_code=400,
                     detail=f"视频大小超过{self.validation.max_size_mb}MB限制",
