@@ -3,7 +3,7 @@ FROM python:3.11-slim
 # 设置工作目录
 WORKDIR /app
 
-# 创建所有必要的目录结构
+# 创建目录和文件
 RUN mkdir -p /app/logs && \
     mkdir -p /app/downloads && \
     mkdir -p /app/logs/supervisor && \
