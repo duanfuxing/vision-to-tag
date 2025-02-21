@@ -19,6 +19,7 @@ services:
       - ./.env:/app/.env
       - ./main.py:/app/main.py
       - ./clean_videos.py:/app/clean_videos.py
+      - ./import_accounts.py:/app/import_accounts.py
       - ./supervisor:/etc/supervisor/conf.d
     depends_on:
       - redis
@@ -26,6 +27,12 @@ services:
       - vision_net
     command: >
       sh -c '
+        mkdir -p /app/logs/supervisor && \
+        touch /app/logs/supervisor/supervisord.log && \
+        touch /app/logs/supervisor/rpa_consumer.log && \
+        touch /app/logs/supervisor/miaobi_consumer.log && \
+        chmod -R 755 /app/logs/supervisor/ && \
+        chown -R root:root /app/logs/supervisor/ && \
         supervisord -c /etc/supervisor/conf.d/supervisord.conf &
         python main.py &
         (crontab -l 2>/dev/null; echo "0 3 * * * cd /app && python clean_videos.py") | crontab -

@@ -240,4 +240,3 @@ python clean_videos.py
 ```bash
 # 手动触发清理（Docker环境）
 docker exec vision_tag python clean_videos.py
-

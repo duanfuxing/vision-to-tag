@@ -20,8 +20,8 @@ class GoogleVisionService:
         # self.account_manager = GoogleAccount()
 
         # 初始化Google Vision API客户端
-        self.api_key = os.getenv("API_KEY", "")
         self.client = None
+        self.api_key = os.getenv("API_KEY", "")
         self._init_client()
 
     def _init_client(self):
@@ -116,7 +116,6 @@ class GoogleVisionService:
                 contents=[video_file, "对视频内容进行理解，并按照规则生成标签"],
                 config=types.GenerateContentConfig(
                     system_instruction=prompt,
-                    top_k=40,
                     top_p=0.95,
                     temperature=1,
                     max_output_tokens=8192,

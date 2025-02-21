@@ -11,6 +11,7 @@ class Task(Base):
     uid = Column(String(100), nullable=False)
     url = Column(String(512), nullable=False)
     platform = Column(String(20), nullable=False)
+    env = Column(String(20), nullable=False)
     status = Column(String(20), nullable=False, default="pending")
     message = Column(Text)
     tags = Column(JSON)

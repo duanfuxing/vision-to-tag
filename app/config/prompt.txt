@@ -127,8 +127,11 @@
 {
     "visual_analysis": {
         "characters": {
-            "tags": [],
-            "confidence": {}
+            "tags": ["女性","白色短袖"],
+            "confidence": {
+                "女性":0.9,
+                "白色短袖":0.95
+            }
         },
         "scene": {
             "tags": [],

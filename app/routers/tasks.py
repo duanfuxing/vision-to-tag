@@ -27,13 +27,16 @@ async def parse_request_body(request: Request) -> Tuple[int, str, Dict[str, Any]
 
 def validate_required_fields(params: dict) -> Tuple[int, str]:
     """验证必填参数"""
-    required_fields = ["url", "platform", "material_id"]
+    required_fields = ["url", "platform", "material_id", "env"]
     missing_fields = [field for field in required_fields if field not in params]
     if missing_fields:
         return 400, f"缺少必填参数: {', '.join(missing_fields)}"
 
     if params.get("platform") not in ["rpa", "miaobi"]:
         return 400, "platform 参数值必须是 'rpa' 或 'miaobi'"
+
+    if params.get("env") not in ["develop", "production"]:
+        return 400, "env 参数值必须是 'develop' 或'production'"
 
     material_id = params.get("material_id")
     if not material_id:
