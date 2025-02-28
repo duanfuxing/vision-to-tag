@@ -199,3 +199,109 @@
         }
     }
 }
+
+ old
+
+ {
+    "visual_analysis": {
+        "characters": {
+            "tags": ["女性","亚洲人","长发","微笑","粉色睡衣"],
+            "confidence": {
+                "女性":0.99,
+                "亚洲人":0.95,
+                "长发":0.98,
+                "微笑":0.9,
+                "粉色睡衣":0.9
+            }
+        },
+        "scene": {
+            "tags": ["卧室","床上"],
+            "confidence": {
+                "卧室":0.95,
+                "床上":0.9
+            }
+        },
+        "cinematography": {
+            "tags": ["特写镜头","正面拍摄"],
+            "confidence": {
+                "特写镜头":0.9,
+                "正面拍摄":0.95
+            }
+        }
+    },
+    "audio_analysis": {
+        "speech": {
+            "tags": ["普通话","女声"],
+            "confidence": {
+                "普通话":0.9,
+                "女声":0.95
+            }
+        },
+        "music": {
+            "tags": [],
+            "confidence": {}
+        },
+        "sound_effects": {
+            "tags": [],
+            "confidence": {}
+        }
+    },
+    "text_analysis": {
+        "subtitles": {
+            "tags": ["简体中文","白底黑字"],
+            "confidence": {
+                "简体中文":0.95,
+                "白底黑字":0.9
+            }
+        },
+        "copywriting": {
+            "tags": ["保健食品","软胶囊","广告"],
+            "confidence": {
+                "保健食品":0.95,
+                "软胶囊":0.9,
+                "广告":0.99
+            }
+        }
+    },
+    "semantic_analysis": {
+        "theme": {
+            "tags": ["健康","产品推广"],
+            "confidence": {
+                "健康":0.9,
+                "产品推广":0.95
+            }
+        },
+        "narrative": {
+            "tags": ["推荐","展示"],
+            "confidence": {
+                "推荐":0.8,
+                "展示":0.9
+            }
+        },
+        "emotion": {
+            "tags": ["积极","正面"],
+            "confidence": {
+                "积极":0.85,
+                "正面":0.9
+            }
+        }
+    },
+    "key_moments": {
+        "points": [
+            {
+                "timestamp": "00:00",
+                "duration": "00:02",
+                "type": "产品展示",
+                "description": "女性展示保健食品",
+                "tags": ["产品展示","女性","保健食品"],
+                "importance": 0.9,
+                "action_points": []
+            }
+        ],
+        "highlights": {
+            "product_show": ["00:00"],
+            "value_props": [],
+            "call_to_action": []
+        }
+    }
+}
