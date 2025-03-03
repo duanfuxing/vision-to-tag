@@ -1,11 +1,9 @@
 import time
 from app.services.logger import get_logger
 from typing import Dict, Any
-from redis import Redis
-from sqlalchemy.orm import Session
 from app.models.task import Task
 from app.db.db_decorators import SessionLocal, retry_on_db_error
-from app.db.redis_decorators import get_redis_client, retry_on_redis_error
+from app.db.redis_decorators import get_redis_client
 import json
 
 # 配置日志记录器
@@ -37,11 +35,10 @@ class Producer:
                 platform=task_data["platform"],
                 env=task_data["env"],
                 status="pending",
+                dismensions=task_data["dismensions"],
                 message=None,
                 tags=None,
-                material_id=material_ids,
-                processed_start=None,
-                processed_end=None,
+                material_id=material_ids
             )
 
             # 开启MySQL事务
@@ -65,6 +62,7 @@ class Producer:
                         "env": task_data["env"],
                         "material_id": material_ids,
                         "status": "pending",
+                        "dismensions":task_data["dismensions"],
                         "retry_count": "0",
                         "created_at": str(int(time.time())),
                     },
