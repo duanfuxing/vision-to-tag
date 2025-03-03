@@ -49,16 +49,24 @@ class PromptManager:
         :param kwargs: 模板参数
         :return: 渲染后的提示词文本
         """
+        # 确保 template_name 有效
+        if template_name not in [
+            "prompt-v3-vision",
+            "prompt-v3-audio",
+            "prompt-v3-content-semantics",
+            "prompt-v3-commercial-value",
+        ]:
+            logger.info(f"【prompt-manager】- 提示词非法{template_name}")
+            raise Exception(f"提示词非法: {template_name}")
         # 确保模板名称有.jinja后缀
         if not template_name.endswith('.jinja'):
             template_name = f"{template_name}.jinja"
-        
         try:
             template = self.env.get_template(template_name)
             return template.render(**kwargs)
         except Exception as e:
-            logger.error(f"模板加载或渲染错误: {template_name}, 错误: {str(e)}")
-            raise Exception(f"模板加载或渲染错误: {template_name}, 错误: {str(e)}")
+            logger.error(f"【prompt-manager】- 提示词加载错误: {template_name}, 错误: {str(e)}")
+            raise Exception(f"提示词加载错误: {template_name}, 错误: {str(e)}")
 
 # 单例实例
 prompt_manager = PromptManager()
