@@ -79,6 +79,7 @@ class RpaConsumer:
         """将任务移动到失败队列"""
         self.redis.lpush(f"{self.platform}:task_queue_failed", task_id)
 
+    # 下载视频
     async def download_video(self, task_id: str, url: str) -> str:
         """下载视频文件"""
         download_start = time.time()
@@ -86,6 +87,8 @@ class RpaConsumer:
         if not video_path:
             error_msg = f"【RpaConsumer】- 视频下载失败: task_id={task_id}, url={url}"
             logger.error(error_msg)
+            # 更新任务状态为错误
+            await self.update_task_status(task_id, "failed", error_msg)
             raise Exception(error_msg)
         download_time = round(time.time() - download_start, 3)
         logger.info(
