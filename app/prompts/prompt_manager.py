@@ -51,16 +51,17 @@ class PromptManager:
         """
         # 确保 template_name 有效
         if template_name not in [
-            "prompt-v3-vision",
-            "prompt-v3-audio",
-            "prompt-v3-content-semantics",
-            "prompt-v3-commercial-value",
+            "vision",
+            "audio",
+            "content-semantics",
+            "commercial-value",
         ]:
             logger.info(f"【prompt-manager】- 提示词非法{template_name}")
             raise Exception(f"提示词非法: {template_name}")
         # 确保模板名称有.jinja后缀
         if not template_name.endswith('.jinja'):
-            template_name = f"{template_name}.jinja"
+            # prompt-v3-前缀
+            template_name = f"prompt-v3-{template_name}.jinja"
         try:
             template = self.env.get_template(template_name)
             return template.render(**kwargs)
