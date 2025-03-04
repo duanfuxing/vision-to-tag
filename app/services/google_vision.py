@@ -6,6 +6,7 @@ from app.services.rate_limiter import RateLimiter
 from app.prompts.prompt_manager import PromptManager
 from requests.exceptions import ConnectionError
 import os
+from config import Settings
 
 # 初始化logger
 logger = get_logger()
@@ -17,7 +18,7 @@ class GoogleVisionService:
 
         # 初始化Google Vision API客户端
         self.client = None
-        self.api_key = os.getenv("API_KEY", "")
+        self.api_key = Settings.API_KEY
         self._init_client()
         self.max_retries = 10  # 最大重试次数
         self.retry_interval = 1  # 重试间隔（秒）
