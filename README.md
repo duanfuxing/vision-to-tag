@@ -139,13 +139,30 @@ python import_accounts.py --file google_accounts.json
 
 ## 部署说明
 
-### Docker部署
+### MiniConda 管理环境
 ```bash
-# 构建镜像
-docker-compose build
+# 下载 MiniConda
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+# 安装 MiniConda
+bash Miniconda3-latest-Linux-x86_64.sh
+# 一路 enter
+# 生效 .bashrc
+source ~/.bashrc
+# 验证安装
+conda --version
+# 创建虚拟环境
+conda create -n vision-to-tag python=3.11
+# 激活环境
+conda activate vision-to-tag
+# 退出环境
+conda deactivate
+```
 
-# 启动服务
-docker-compose up -d
+### Supervisor 守护进程
+```bash
+# 安装 supervisor
+sudo apt install supervisor
+# 更新配置文件
 ```
 
 ### 本地部署
