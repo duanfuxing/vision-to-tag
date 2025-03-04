@@ -2,7 +2,7 @@ from sqlalchemy import Column, Integer, String, JSON, DateTime, func
 from sqlalchemy.sql import func
 from app.db.base_class import Base
 
-class VideoTask(Base):
+class Task(Base):
     __tablename__ = "video_tasks"
 
     id = Column(Integer, primary_key=True, autoincrement=True, comment='主键ID')
@@ -15,15 +15,5 @@ class VideoTask(Base):
     dismensions = Column(String(30), nullable=False, default='all', comment='提取维度all-全部， vision-视觉，audio-音频，content-semantics-内容语义，commercial-value-商业价值')
     message = Column(JSON, nullable=True, comment='附加信息')
     tags = Column(JSON, nullable=True, comment='视频标签')
-    material_id = Column(JSON, nullable=True, comment='素材ID')
     created_at = Column(DateTime, nullable=False, default=func.current_timestamp(), comment='创建时间')
     updated_at = Column(DateTime, nullable=False, default=func.current_timestamp(), onupdate=func.current_timestamp(), comment='更新时间')
-
-    # Indexes
-    __table_args__ = (
-        {'comment': '视频任务表'},
-        {'indexes': [
-            {'name': 'idx-task_id', 'columns': ['task_id']},
-            {'name': 'idx-status', 'columns': ['status']}
-        ]}
-    )
