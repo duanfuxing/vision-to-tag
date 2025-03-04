@@ -1,6 +1,6 @@
 import time
 import asyncio
-from typing import Dict, Any, Optional
+from typing import Optional
 from redis import Redis
 from sqlalchemy.orm import Session
 from app.db.db_decorators import SessionLocal, retry_on_db_error
@@ -11,7 +11,6 @@ from app.services.google_vision import GoogleVisionService
 from app.services.logger import get_logger
 import json
 import os
-import requests
 
 logger = get_logger()
 
@@ -99,101 +98,46 @@ class RpaConsumer:
     async def generate_video_tags(self, task_id: str, video_path: str) -> dict:
         """生成视频标签"""
         logger.info(f"【RpaConsumer】- 解析视频标签开始: task_id={task_id}")
-        with open("app/config/prompt.txt", "r") as f:
-            prompt = f.read()
-
+        
+        # 获取任务信息
+        task_info = self.redis.hgetall(f"{self.platform}:task_info:{task_id}")
+        dimensions = task_info.get("dimensions", "all")
+        
         vision_start = time.time()
         try:
             google_vision_service = GoogleVisionService()  # 初始化Google视频标签服务
-            vision_response = google_vision_service.generate_tag(video_path, prompt)
-            if not isinstance(vision_response, str):
-                vision_response = str(vision_response)
+            
+            if dimensions == "all":
+                # 按顺序处理四个维度的标签生成
+                dimension_list = ["vision", "audio", "content-semantics", "commercial-value"]
+                merged_tags = {}
+                
+                for dim in dimension_list:
+                    dim_start = time.time()
+                    response = google_vision_service.generate_tag(video_path, dim)
+                    dim_time = round(time.time() - dim_start, 3)
+                    logger.info(f"【RpaConsumer】- {dim} 维度处理完成，耗时={dim_time}秒")
+                    
+                    if not isinstance(response, str):
+                        response = str(response)
+                    merged_tags[dim] = json.loads(response.strip())
+                
+                vision_response = json.dumps(merged_tags)
+            else:
+                # 单一维度的标签生成
+                vision_response = google_vision_service.generate_tag(video_path, dimensions)
+                if not isinstance(vision_response, str):
+                    vision_response = str(vision_response)
+            
         except Exception as e:
-            error_msg = (
-                f"【RpaConsumer】- 生成视频标签失败: task_id={task_id}, error={str(e)}"
-            )
+            error_msg = f"【RpaConsumer】- 生成视频标签失败: task_id={task_id}, error={str(e)}"
             logger.error(error_msg)
             raise Exception(error_msg)
+        
         vision_time = round(time.time() - vision_start, 3)
-        logger.info(
-            f"【RpaConsumer】- 获取视频标签成功: task_id={task_id}, 耗时={vision_time}秒"
-        )
+        logger.info(f"【RpaConsumer】- 获取视频标签成功: task_id={task_id}, 总耗时={vision_time}秒")
 
         return json.loads(vision_response.strip())
-
-    async def sync_tags_to_es(self, task_id: str, task_info: str, tags: dict) -> None:
-        """同步标签到ES服务"""
-        sync_start = time.time()
-        logger.info(f"【RpaConsumer】- 开始同步标签到ES: task_info={task_info}")
-        try:
-            # 验证tags数据格式
-            if not isinstance(tags, dict):
-                error_msg = f"【RpaConsumer】- 标签数据格式错误，期望dict类型: task_id={task_id}"
-                logger.error(error_msg)
-                raise ValueError(error_msg)
-
-            if not tags:
-                error_msg = f"【RpaConsumer】- 标签数据为空: task_id={task_id}"
-                logger.error(error_msg)
-                raise ValueError(error_msg)
-
-            # 根据task_info['env']选择ES API URL
-            if task_info.get("env") == "production":
-                es_api_url = os.getenv("ES_API_URL_PROD")
-            else:
-                es_api_url = os.getenv("ES_API_URL_DEVE")
-
-            if not es_api_url:
-                error_msg = f"【RpaConsumer】- ES_API_URL环境变量未配置，请检查.env文件: task_id={task_id}"
-                logger.error(error_msg)
-                raise Exception(error_msg)
-
-            # 构造请求数据
-            material_ids = (
-                json.loads(task_info["material_id"]) if task_info["material_id"] else []
-            )
-            if not isinstance(material_ids, list):
-                material_ids = [material_ids]
-
-            request_data = {
-                "material_ids": material_ids,
-                "tags": tags,
-            }
-
-            response = requests.request(
-                "POST",
-                es_api_url,
-                headers={"Content-Type": "application/json"},
-                data=json.dumps(request_data),
-                timeout=300,
-            )
-            response.raise_for_status()
-
-            resp_data = response.json()
-            if resp_data.get("code") != 10000:
-                error_msg = (
-                    f"ES入库失败: task_id={task_id}, message={resp_data.get('message')}"
-                )
-                logger.error(error_msg)
-                raise Exception(error_msg)
-
-            sync_time = round(time.time() - sync_start, 3)
-            logger.info(
-                f"【RpaConsumer】- 同步标签到ES成功: task_id={task_id}, 耗时={sync_time}秒"
-            )
-
-        except requests.exceptions.Timeout:
-            error_msg = f"【RpaConsumer】- ES入库服务请求超时: task_id={task_id}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
-        except requests.exceptions.RequestException as e:
-            error_msg = f"【RpaConsumer】- ES入库服务请求异常: task_id={task_id}, error={str(e)}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
-        except ValueError as e:
-            error_msg = f"【RpaConsumer】- ES入库服务响应解析失败: task_id={task_id}, error={str(e)}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
 
     @retry_on_db_error(max_retries=3, base_delay=1)
     async def update_mysql_tags(self, task_id: str, tags: dict) -> None:
@@ -255,7 +199,7 @@ class RpaConsumer:
                 logger.info(f"【RpaConsumer】- 生成视频标签成功: {tags}")
 
                 # 同步标签到ES
-                await self.sync_tags_to_es(task_id, task_info, tags)
+                # await self.sync_tags_to_es(task_id, task_info, tags)
 
                 # 更新MySQL中的标签
                 await self.update_mysql_tags(task_id, tags)

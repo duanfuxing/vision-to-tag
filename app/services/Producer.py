@@ -21,8 +21,7 @@ class Producer:
         """创建视频处理任务"""
         start_time = time.time()
         try:
-            uid = task_data.get("uid", "")
-            material_ids = json.dumps(task_data["material_id"])
+            uid = task_data.get("uid", "0")
             logger.info(
                 f"【Producer-{task_data['platform']}】- 开始创建任务: {task_id}, 参数: {task_data}"
             )
@@ -36,9 +35,8 @@ class Producer:
                 env=task_data["env"],
                 status="pending",
                 dismensions=task_data["dismensions"],
-                message=None,
-                tags=None,
-                material_id=material_ids
+                message={},
+                tags={},
             )
 
             # 开启MySQL事务
@@ -60,7 +58,6 @@ class Producer:
                         "uid": uid,
                         "platform": task_data["platform"],
                         "env": task_data["env"],
-                        "material_id": material_ids,
                         "status": "pending",
                         "dismensions":task_data["dismensions"],
                         "retry_count": "0",
