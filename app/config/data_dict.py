@@ -1,6 +1,6 @@
 from pydantic import BaseModel, HttpUrl, Field
 from typing import Optional, List, TypeVar, Generic
-import os
+from config import Settings
 
 T = TypeVar("T")
 
@@ -18,13 +18,6 @@ class VideoRequest(BaseModel):
 class VideoValidation(BaseModel):
     """视频验证参数"""
     # 最大文件大小（MB）
-    max_size_mb: int = os.getenv("MAX_VIDEO_SIZE_MB", 100)
+    max_size_mb: int = Settings.MAX_VIDEO_SIZE_MB
     # 支持的视频格式
-    allowed_formats: List[str] = [
-        "mp4",
-        "avi",
-        "mov",
-        "wav",
-        "3gpp",
-        "x-flv"
-    ]
+    allowed_formats: List[str] = Settings.ALLOWED_VIDEO_FORMATS

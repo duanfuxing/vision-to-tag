@@ -8,16 +8,16 @@ from sqlalchemy.pool import QueuePool
 from app.services.logger import get_logger
 import time
 import random
-import os
+from config import Settings
 
 logger = get_logger()
 
 # 从环境变量获取数据库连接信息
-DB_USER = os.getenv("DB_USER", "root")
-DB_PASSWORD = os.getenv("DB_PASSWORD", "123456")
-DB_HOST = os.getenv("DB_HOST", "localhost")
-DB_PORT = os.getenv("DB_PORT", "3306")
-DB_DATABASE = os.getenv("DB_DATABASE", "vision_to_tag")
+DB_USER = Settings.DB_USERNAME
+DB_PASSWORD = Settings.DB_PASSWORD
+DB_HOST = Settings.DB_HOST
+DB_PORT = Settings.DB_PORT
+DB_DATABASE = Settings.DB_DATABASE
 
 # 构建数据库URL
 DATABASE_URL = (

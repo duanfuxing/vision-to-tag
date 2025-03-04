@@ -11,13 +11,14 @@ from redis.exceptions import (
 )
 from app.services.logger import get_logger
 from redis import Redis
-import os
+from config import Settings
 
 # 从环境变量获取Redis连接信息
-REDIS_HOST = os.getenv("REDIS_HOST", "localhost")
-REDIS_PORT = int(os.getenv("REDIS_PORT", "6379"))
-REDIS_PASSWORD = os.getenv("REDIS_PASSWORD", None)
-REDIS_DB = int(os.getenv("REDIS_DB", "0"))
+REDIS_HOST = Settings.REDIS_HOST
+REDIS_PORT = int(Settings.REDIS_PORT)
+REDIS_PASSWORD = Settings.REDIS_PASSWORD
+# 使用 0 库
+REDIS_DB = 0
 
 
 def get_redis_client() -> Redis:
