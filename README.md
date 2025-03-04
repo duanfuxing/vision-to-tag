@@ -1,7 +1,10 @@
 # Vision-to-tag 视频标签生成服务
 
 ## 项目介绍
-Vision-to-tag是一个基于Google的gemini-2.0-pro-exp-02-05模型实现的视频标签生成服务。该服务能够自动分析视频内容，提取关键场景，并生成相应的标签描述，数据提交至ES服务。
+Vision-to-tag是一个基于Google的 gemini-2.0-flash 模型实现的视频标签生成服务 
+
+该服务能够自动分析视频内容，提取关键场景，并生成相应的标签描述 
+
 
 ## 系统架构
 [API Server] → [MySQL] ↔ [Redis]
@@ -168,7 +171,8 @@ POST /api/v1/task/create
     "url": "http://example.com/video.mp4", // 必填参数，视频URL
     "uid": 123, // 可选参数，uid
     "platform": "rpa", // 必填参数 rpa, miaobi
-    "material_id": [1,2] // 必填参数，用于区分不同的素材
+    "dismensions": "all", // 拆分维度 all-全部 vision-视觉
+    "env": "develop" // 环境
 }
 
 成功响应
