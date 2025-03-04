@@ -1,36 +1,30 @@
-from pydantic import BaseModel, HttpUrl
+from pydantic import BaseModel, HttpUrl, Field
 from typing import Optional, List, TypeVar, Generic
-from datetime import datetime
 import os
-
 
 T = TypeVar("T")
 
-
 class BaseResponse(BaseModel, Generic[T]):
     """基础响应模型"""
-
-    code: int = 200  # HTTP状态码
-    message: str = "Success"  # 响应消息
-    task_id: str = ""  # 任务ID
-    data: Optional[T] = []  # 响应数据
-
+    status: str = Field(default="error", description="状态 error-错误 success-成功")
+    message: str = Field(default="success", description="响应消息 status=error时表示错误信息")
+    task_id: Optional[str] = Field(default=None, description="任务ID")
+    data: Optional[T] = Field(default=None, description="响应数据")
 
 class VideoRequest(BaseModel):
     """视频处理请求参数"""
-
     url: HttpUrl
-
 
 class VideoValidation(BaseModel):
     """视频验证参数"""
-
-    max_size_mb: int = os.getenv("MAX_VIDEO_SIZE_MB", 100)  # 最大文件大小（MB）
+    # 最大文件大小（MB）
+    max_size_mb: int = os.getenv("MAX_VIDEO_SIZE_MB", 100)
+    # 支持的视频格式
     allowed_formats: List[str] = [
         "mp4",
         "avi",
         "mov",
         "wav",
         "3gpp",
-        "x-flv",
-    ]  # 支持的视频格式
+        "x-flv"
+    ]
