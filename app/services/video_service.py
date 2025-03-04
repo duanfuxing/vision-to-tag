@@ -3,6 +3,7 @@ import aiohttp
 from fastapi import HTTPException
 import ssl
 import os
+from config import Settings
 from datetime import datetime
 from app.config.data_dict import VideoValidation
 from app.services.logger import get_logger
@@ -89,7 +90,7 @@ class VideoService:
         """下载视频到指定目录"""
         video_dir = self._create_video_directory(task_id)
         filename = self._get_valid_filename(url, task_id)
-        video_path = video_dir / filename
+        video_path = os.path.join(video_dir, filename)
 
         try:
             await self._download_file(url, video_path)
@@ -118,7 +119,7 @@ class VideoService:
     def _create_video_directory(self, task_id: str) -> Path:
         """创建视频存储目录"""
         now = datetime.now()
-        video_dir = Path.cwd() / "download" / now.strftime("%Y/%m/%d") / task_id
+        video_dir = os.path.join(Settings.DOWNLOAD_DIR, now.strftime("%Y/%m"), task_id)
         os.makedirs(str(video_dir), exist_ok=True)
         return video_dir
 
