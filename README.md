@@ -188,8 +188,7 @@ POST /api/v1/task/create
     "url": "http://example.com/video.mp4", // 必填参数，视频URL
     "uid": 123, // 可选参数，uid
     "platform": "rpa", // 必填参数 rpa, miaobi
-    "dismensions": "all", // 拆分维度 all-全部 vision-视觉
-    "env": "develop" // 环境
+    "dimensions": "all" // 拆分维度 all-全部 vision-视觉
 }
 
 成功响应
@@ -259,5 +258,3 @@ python clean_videos.py
 系统默认每天凌晨3点自动执行缓存清理任务，清理7天前的视频文件。此功能在Docker环境中已配置，无需额外设置。如需调整清理时间或策略，可修改docker-compose.yml中的定时任务配置。
 
 ```bash
-# 手动触发清理（Docker环境）
-docker exec vision_tag python clean_videos.py

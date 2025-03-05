@@ -5,34 +5,30 @@ from app.config.data_dict import BaseResponse
 from app.services.video_service import VideoService
 from app.services.logger import get_logger
 from app.services.Producer import Producer
+from app.db.db_decorators import SessionLocal, retry_on_db_error
+from app.models.task import Task
 
 import uuid
 import aiohttp
 import json
-from typing import Tuple, Dict, Any
 
 # 定义枚举类型来限制参数值
 class Platform(str, Enum):
     RPA = "rpa"
     MIAOBI = "miaobi"
 
-class Environment(str, Enum):
-    DEVELOP = "develop"
-    PRODUCTION = "production"
-
 class Dimension(str, Enum):
     VISION = "vision"
     AUDIO = "audio"
-    CONTENT_SEMANTICS = "content-semantics"
-    COMMERCIAL_VALUE = "commercial-value"
+    CONTENT = "content"
+    BUSINESS = "business"
     ALL = "all"
 
 # 请求模型
 class TaskCreateRequest(BaseModel):
     url: HttpUrl
     platform: Platform
-    env: Environment
-    dismensions: Dimension
+    dimensions: Dimension
 
 router = APIRouter(prefix="/task", tags=["Video"])
 logger = get_logger()
@@ -95,3 +91,36 @@ async def task_create(request: Request):
         err_msg = f"系统错误, error:{str(e)}, params: {params}"
         logger.error(err_msg)
         return create_error_response("error", err_msg, task_id)
+    
+@retry_on_db_error(max_retries=3)
+@router.get("/get/{task_id}", response_model=BaseResponse[dict])
+async def get_task(task_id: str):
+    """获取任务详情"""
+    # 验证 task_id 是否传递
+    if not task_id:
+        return create_error_response("error", "任务ID不能为空", None)
+
+    # 验证 task_id 是否为有效的 UUID
+    try:
+        uuid.UUID(task_id)
+    except ValueError:
+        return create_error_response("error", "无效的任务ID格式", task_id)
+    try:
+        # 查询任务
+        db = SessionLocal()
+        task = db.query(Task).filter(Task.task_id == task_id).first()
+        
+        if not task:
+            return create_error_response("error", f"未找到任务ID: {task_id}", task_id)
+        
+        # 构建响应数据
+        return BaseResponse[dict](
+            status="success",
+            message="success",
+            task_id=task_id,
+            data=task.tags
+        )
+        
+    except Exception as e:
+        logger.error(f"获取任务详情失败, task_id: {task_id}, error: {str(e)}")
+        return create_error_response("error", "获取任务详情失败", task_id)

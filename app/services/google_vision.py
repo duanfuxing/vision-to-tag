@@ -10,12 +10,6 @@ from app.prompts.prompt_manager import PromptManager
 # 初始化logger
 logger = get_logger()
 
-class GoogleFileUploadError(Exception):
-    """Google文件上传异常"""
-    def __init__(self, message):
-        self.message = message
-        super().__init__(self.message)
-
 class GoogleTagGenerationError(Exception):
     """Google标签生成异常"""
     def __init__(self, message):
@@ -44,10 +38,6 @@ class GoogleVisionService:
         # 服务端错误且错误码为503时重试
         elif (isinstance(e, genai.errors.ServerError) and e.code == 503):
             logger.info(f"[Service-Retry] - 服务端错误且错误码为503时重试")
-            return True
-        # 谷歌文件上传错误时重试
-        elif (isinstance(e, GoogleFileUploadError)):
-            logger.info(f"[Service-Retry] - 谷歌文件上传错误时重试")
             return True
         # 打标签返回结果不是完整json时重试
         elif (isinstance(e, GoogleTagGenerationError)):
@@ -111,25 +101,50 @@ class GoogleVisionService:
             logger.info(err_msg)
             raise Exception(err_msg)
     
+    def _wait_for_file_active(self, file_name: str, timeout: int = 60) -> bool:
+        """
+        等待文件状态变为 ACTIVE
+        Args:
+            file_name: 文件名
+            timeout: 超时时间（秒）
+        Returns:
+            bool: 文件是否激活
+        """
+        start_time = time.time()
+        while True:
+            try:
+                file_info = self.client.files.get(name=file_name)
+                if file_info.state.name == "ACTIVE":
+                    return True
+                
+                # 检查是否超时
+                if time.time() - start_time > timeout:
+                    logger.error(f"【Google】- 等待文件激活超时：{file_name}")
+                    return False
+                
+                # 等待一段时间后重试
+                time.sleep(self.retry_interval)
+                
+            except Exception as e:
+                logger.error(f"【Google】- 检查文件状态失败：{str(e)}")
+                return False
+
     @retry.Retry(predicate=is_retryable)
     def upload_file(self, file_path: str):
         """上传文件"""
         try:
+            # 上传文件
             video_file = self.client.files.upload(file=file_path)
-            time.sleep(self.retry_interval)
-            file_info = self.client.files.get(name=video_file.name)
-            # 检查文件状态
-            if file_info.state.name != "ACTIVE":
-                err_msg = f"【Google】- 文件状态错误：{video_file.name}，state：{file_info.state.name}"
-                # 返回自定义文件上传失败的异常
-                raise GoogleFileUploadError(err_msg)
+            
+            # 等待文件状态变为 ACTIVE
+            if not self._wait_for_file_active(video_file.name):
+                err_msg = f"【Google】- 文件未能激活：{video_file.name}"
+                logger.error(err_msg)
+                raise Exception(err_msg)
 
             return video_file
-        except GoogleFileUploadError as e:
-            logger.error(e)
-            raise GoogleFileUploadError(e)
         except Exception as e:
-            err_msg = f"【Google】- 文件上传失败：{video_file.name}，错误信息：{str(e)}"
+            err_msg = f"【Google】- 文件上传失败：{str(e)}"
             logger.error(err_msg)
             raise Exception(err_msg)
             
@@ -138,6 +153,7 @@ class GoogleVisionService:
         """删除 google 文件"""
         try:
             self.client.files.delete(name=google_file.name)
+            logger.info(f"【Google】- 已删除谷歌文件: {google_file.name}")
         except Exception as e:
             err_msg = f"【Google】- 删除文件失败: {str(e)}"
             logger.error(err_msg)
@@ -145,8 +161,10 @@ class GoogleVisionService:
         
     @retry.Retry(predicate=is_retryable)
     def generate_tag(self, google_file, dim: str, user_prompt: str = "对视频内容进行理解，并按照规则生成标签") -> str:
-        """异步生成标签"""
+        """生成标签"""
         # 根据场景获取提示词
+        # if dim == 'content':
+        #     raise Exception("content维度故意失败")
         try:
             system_prompt = self.get_system_prompt_by_dim(dim)
         except Exception as e:
@@ -192,32 +210,30 @@ class GoogleVisionService:
         return response.text
         
 # 测试开启      
-# if __name__ == "__main__":
+if __name__ == "__main__":
     
-#     google_file = None
-#     try:
-#         test = GoogleVisionService()
-#         start_time = time.time()
-#         file_path = "/home/eleven/vision-to-tag/test/test-2.mp4"
-#         google_file = test.upload_file(file_path)
-#         print(google_file)
+    google_file = None
+    try:
+        test = GoogleVisionService()
+        start_time = time.time()
+        file_path = "/home/eleven/vision-to-tag/test/test-2.mp4"
+        google_file = test.upload_file(file_path)
         
-#         # 使用 await 调用异步方法
-#         result = test.generate_tag(google_file=google_file, dim="vision")
-#         print(result)
-#         result = test.generate_tag(google_file=google_file, dim="audio")
-#         print(result)
-#         result = test.generate_tag(google_file=google_file, dim="content-semantics")
-#         print(result)
-#         result = test.generate_tag(google_file=google_file, dim="commercial-value")
-#         print(result)
+        result = test.generate_tag(google_file=google_file, dim="vision")
+        print(result)
+        result = test.generate_tag(google_file=google_file, dim="audio")
+        print(result)
+        result = test.generate_tag(google_file=google_file, dim="content")
+        print(result)
+        result = test.generate_tag(google_file=google_file, dim="business")
+        print(result)
         
-#         # 记录程序结束时间
-#         end_time = time.time()
-#         execution_time = end_time - start_time
-#         print(f"程序执行时长: {execution_time:.2f} 秒")
-#     except Exception as e:
-#         print(str(e))
-#     finally:
-#         if google_file:
-#             test.delete_google_file(google_file=google_file)
+        # 记录程序结束时间
+        end_time = time.time()
+        execution_time = end_time - start_time
+        print(f"程序执行时长: {execution_time:.2f} 秒")
+    except Exception as e:
+        print(str(e))
+    finally:
+        if google_file:
+            test.delete_google_file(google_file=google_file)

@@ -1,6 +1,6 @@
 import time
 import asyncio
-from typing import Dict, Any, Optional
+from typing import Optional
 from redis import Redis
 from sqlalchemy.orm import Session
 from app.db.db_decorators import SessionLocal, retry_on_db_error
@@ -9,12 +9,11 @@ from app.models.task import Task
 from app.services.video_service import VideoService
 from app.services.google_vision import GoogleVisionService
 from app.services.logger import get_logger
+from config import Settings
 import json
 import os
-import requests
 
 logger = get_logger()
-
 
 class MiaobiConsumer:
     def __init__(self, db: Session, redis: Redis):
@@ -85,9 +84,7 @@ class MiaobiConsumer:
         download_start = time.time()
         video_path = await self.video_service.download_video(url, task_id)
         if not video_path:
-            error_msg = (
-                f"【MiaobiConsumer】- 视频下载失败: task_id={task_id}, url={url}"
-            )
+            error_msg = (f"【MiaobiConsumer】- 视频下载失败: task_id={task_id}, url={url}")
             logger.error(error_msg)
             # 更新任务状态为错误
             await self.update_task_status(task_id, "failed", error_msg)
@@ -98,88 +95,184 @@ class MiaobiConsumer:
         )
         return video_path
 
+    @retry_on_db_error(max_retries=3, base_delay=1)
+    async def update_dimension_result(self, task_id: str, total_result: dict):
+        """更新处理结果到数据库
+        
+        Args:
+            task_id (str): 任务ID
+            total_result (dict): {
+                "tags": {
+                    "dimension1": [...],
+                    "dimension2": [...]
+                },
+                "message": {
+                    "dimension1": {"status": "success|failed", "message": "..."},
+                    "dimension2": {"status": "success|failed", "message": "..."}
+                }
+            }
+        """
+        task = self.db.query(Task).filter(Task.task_id == task_id).first()
+        if task:
+            try:
+                # 更新tags字段
+                task.tags = total_result["tags"]
+                
+                # 更新message字段
+                task.message = total_result["message"]
+                
+                # 检查是否有任何维度处理出错
+                has_failed = any(
+                    msg.get("status") == "failed" 
+                    for msg in total_result["message"].values()
+                )
+                
+                # 更新任务状态
+                task.status = "failed" if has_failed else "completed"
+                
+                # 更新任务完成时间
+                task.processed_end = time.strftime("%Y-%m-%d %H:%M:%S")
+
+                self.db.commit()
+                logger.info(f"【MiaobiConsumer】- 结果更新成功: task_id={task_id}, status={task.status}")
+            except Exception as e:
+                error_msg = f"【MiaobiConsumer】- 更新结果失败: task_id={task_id}, error={str(e)}"
+                logger.error(error_msg)
+                raise Exception(error_msg)
+
     async def generate_video_tags(self, task_id: str, video_path: str, dimensions: str) -> dict:
-        """生成视频标签"""
+        """生成视频标签，返回所有维度的处理结果
+        
+        Returns:
+            dict: {
+                "tags": {
+                    "dimension1": [...],
+                    "dimension2": [...]
+                },
+                "message": {
+                    "dimension1": {"status": "success|failed", "message": "..."},
+                    "dimension2": {"status": "success|failed", "message": "..."}
+                }
+            }
+        """
         logger.info(f"【MiaobiConsumer】- 解析视频标签开始: task_id={task_id}")
-        # 调用 Google 服务生成标签
-        google_file = None
         vision_start = time.time()
+        
+        # 初始化结果数据结构
+        dimension_results = {
+            dim: {
+                "tags": [],
+                "message": {"status": "success", "message": "waiting"}
+            }
+            for dim in (Settings.VIDEO_DIMENSIONS if dimensions == "all" else [dimensions])
+        }
+        
+        vision_service = None
+        google_file = None
+        
         try:
-            # 实例化 GoogleVisionService 服务
+            # 初始化服务
             vision_service = GoogleVisionService()
+            
             # 上传文件
-            google_file = vision_service.upload_file(video_path)
-            logger.info(f"【MiaobiConsumer】上传文件成功:{video_path}")
+            try:
+                google_file = vision_service.upload_file(video_path)
+                logger.info(f"【MiaobiConsumer】上传文件成功:{video_path}")
+            except Exception as upload_error:
+                error_msg = f"上传文件失败: {str(upload_error)}"
+                logger.error(f"【MiaobiConsumer】- {error_msg}")
+                raise Exception(error_msg)
 
-            # 全部维度的标签生成
-            if dimensions == "all":
-                # 按顺序处理四个维度的标签生成
-                dimension_list = ["vision", "audio", "content-semantics", "commercial-value"]
-                merged_tags = {}
+            # 处理每个维度
+            for dimension in dimension_results.keys():
+                result = await self._process_single_dimension(google_file, dimension, vision_service)
+                dimension_results[dimension] = result
                 
-                for dim in dimension_list:
-                    dim_start = time.time()
-                    response = vision_service.generate_tag(google_file, dim)
-                    dim_time = round(time.time() - dim_start, 3)
-                    logger.info(f"【MiaobiConsumer】- {dim} 维度处理完成，耗时={dim_time}秒")
-                    
-                    if not isinstance(response, str):
-                        response = str(response)
-                    merged_tags[dim] = json.loads(response.strip())
-                
-                vision_response = json.dumps(merged_tags)
-            else:
-                # 单一维度的标签生成
-                vision_response = vision_service.generate_tag(google_file, dimensions)
-                if not isinstance(vision_response, str):
-                    vision_response = str(vision_response)
-                    
-            # 解析响应为JSON格式
-            if not isinstance(vision_response, str):
-                vision_response = str(vision_response)
-
-            # 移除首尾空白字符
-            response_data = json.loads(vision_response.strip())
-        # json 解析异常
-        except json.JSONDecodeError:
-            err_msg = f"【MiaobiConsumer】- 模型响应格式错误，无法解析为JSON"
-            logger.error(err_msg)
-            raise Exception(err_msg)
         except Exception as e:
             err_msg = f"【MiaobiConsumer】- 生成视频标签失败: task_id={task_id}, error={str(e)}"
             logger.error(err_msg)
             raise Exception(err_msg)
-        # 清理文件
         finally:
-            if google_file:  # 确保 google_file 已成功赋值
-                vision_service.delete_google_file(google_file=google_file)
-            # 测试时关闭
-            # 删除本地临时文件
-            vision_service.delete_local_file(file_path=video_path)
-        # 计算耗时
-        vision_time = round(time.time() - vision_start, 3)
-        logger.info(
-            f"【MiaobiConsumer】- 获取视频标签成功: task_id={task_id}, 耗时={vision_time}秒"
-        )
-        return response_data
+            # 资源清理
+            await self._cleanup_resources(vision_service, google_file, video_path)
 
-    @retry_on_db_error(max_retries=3, base_delay=1)
-    async def update_mysql_tags(self, task_id: str, tags: dict) -> None:
-        """更新MySQL中的标签"""
-        update_start = time.time()
-        task = self.db.query(Task).filter(Task.task_id == task_id).first()
-        if task:
-            try:
-                task.tags = tags
-                self.db.commit()
-                update_time = round(time.time() - update_start, 3)
-                logger.info(
-                    f"【MiaobiConsumer】- DB更新标签成功: task_id={task_id}, 耗时={update_time}秒"
-                )
-            except Exception as e:
-                error_msg = f"【MiaobiConsumer】- 更新MySQL标签失败: task_id={task_id}, error={str(e)}"
-                logger.error(error_msg)
-                raise Exception(error_msg)
+        # 重组结果格式
+        all_dimension_results = {
+            "tags": {dim: results["tags"] for dim, results in dimension_results.items()},
+            "message": {dim: results["message"] for dim, results in dimension_results.items()}
+        }
+
+        vision_time = round(time.time() - vision_start, 3)
+        logger.info(f"【MiaobiConsumer】- 获取视频标签完成: task_id={task_id}, 耗时={vision_time}秒")
+        return all_dimension_results
+
+    async def _process_single_dimension(self, google_file: str, dimension: str, 
+                                     vision_service: GoogleVisionService) -> dict:
+        """处理单个维度的标签生成
+        
+        Returns:
+            dict: {
+                "tags": list 标签列表,
+                "message": {
+                    "status": str "success" 或 "failed",
+                    "message": str 成功或错误信息
+                }
+            }
+        """
+        try:
+            dim_start = time.time()
+            
+            # 生成标签
+            response = vision_service.generate_tag(google_file, dimension)
+            if not isinstance(response, str):
+                response = str(response)
+            
+            # 解析结果
+            dimension_tags = json.loads(response.strip())
+            
+            dim_time = round(time.time() - dim_start, 3)
+            logger.info(f"【MiaobiConsumer】- {dimension} 维度处理完成，耗时={dim_time}秒")
+            
+            return {
+                "tags": dimension_tags,
+                "message": {
+                    "status": "success",
+                    "message": "success"
+                }
+            }
+            
+        except json.JSONDecodeError as json_error:
+            error_msg = f"解析维度 {dimension} 的JSON结果失败: {str(json_error)}"
+            logger.error(f"【MiaobiConsumer】- {error_msg}")
+            return {
+                "tags": [],
+                "message": {
+                    "status": "failed",
+                    "message": error_msg
+                }
+            }
+            
+        except Exception as e:
+            error_msg = f"处理维度 {dimension} 时发生错误: {str(e)}"
+            logger.error(f"【MiaobiConsumer】- {error_msg}")
+            return {
+                "tags": [],
+                "message": {
+                    "status": "failed",
+                    "message": error_msg
+                }
+            }
+
+    async def _cleanup_resources(self, vision_service: Optional[GoogleVisionService], 
+                               google_file: Optional[str], video_path: str) -> None:
+        """清理资源"""
+        try:
+            if vision_service and google_file:
+                vision_service.delete_google_file(google_file=google_file)
+            if video_path and os.path.exists(video_path):
+                vision_service.delete_local_file(file_path=video_path)
+        except Exception as e:
+            logger.error(f"【MiaobiConsumer】- 清理资源失败: {str(e)}")
 
     async def process_task(self, task_id: str):
         """处理单个任务"""
@@ -219,14 +312,15 @@ class MiaobiConsumer:
                 video_path = await self.download_video(task_id, task_info["url"])
 
                 # 生成视频标签
-                tags = await self.generate_video_tags(task_id, video_path, task_info["dismensions"])
-                logger.info(f"【MiaobiConsumer】- 生成视频标签成功: {tags}")
+                total_result = await self.generate_video_tags(task_id, video_path, task_info["dimensions"])
+                logger.info(f"【MiaobiConsumer】- 生成视频标签成功")
 
-                # 更新MySQL中的标签
-                await self.update_mysql_tags(task_id, tags)
+                # 更新数据库
+                await self.update_dimension_result(
+                    task_id=task_id,
+                    total_result=total_result,
+                )
 
-                # 更新任务状态为完成
-                await self.update_task_status(task_id, "completed", "success")
                 total_time = round(time.time() - start_time, 3)
                 logger.info(
                     f"【MiaobiConsumer】- 任务处理完成: task_id={task_id}, 总耗时={total_time}秒"

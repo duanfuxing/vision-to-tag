@@ -35,9 +35,12 @@ class Settings:
 
     # 视频处理配置
     MAX_VIDEO_SIZE_MB = int(os.getenv("MAX_VIDEO_SIZE_MB", 100))
-    ALLOWED_VIDEO_FORMATS = eval(os.getenv("ALLOWED_VIDEO_FORMATS", '["mp4","avi","mov", "wav"]'))
+    ALLOWED_VIDEO_FORMATS = ["mp4","avi","mov", "wav"]
 
     # API Key
     API_KEY = os.getenv("API_KEY")
+
+    # 视频拆分维度
+    VIDEO_DIMENSIONS= ["vision", "audio", "content", "business"]
 
 settings = Settings()

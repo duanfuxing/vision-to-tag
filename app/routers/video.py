@@ -1,8 +1,10 @@
 from fastapi import APIRouter, HTTPException, Request
 from app.config.data_dict import VideoRequest, BaseResponse
-from app.services.google_vision import GoogleVisionService
+from app.services.google_vision import GoogleVisionService, GoogleTagGenerationError
 from app.services.video_service import VideoService
 from app.services.logger import get_logger
+from config import Settings
+from functools import wraps
 import uuid
 import aiohttp
 import json
@@ -11,8 +13,36 @@ import time
 router = APIRouter(prefix="/vision_to_tag", tags=["Video"])
 logger = get_logger()
 
+def handle_google_errors(func):
+    """处理Google服务相关的异常装饰器"""
+    @wraps(func)
+    async def wrapper(*args, **kwargs):
+        try:
+            return await func(*args, **kwargs)
+        except json.JSONDecodeError:
+            logger.error("模型响应格式错误，无法解析为JSON")
+            return BaseResponse[dict](
+                status="error", message="模型响应格式错误"
+            )
+        except GoogleTagGenerationError as e:
+            # 这些错误已经经过重试机制处理，可以直接返回错误
+            logger.error(f"Google服务错误: {str(e)}")
+            return BaseResponse[dict](
+                status="error", message=str(e)
+            )
+        except (ConnectionError, TimeoutError) as e:
+            # 网络相关错误，让内层重试机制处理
+            raise
+        except Exception as e:
+            logger.error(f"未预期的错误: {str(e)}")
+            return BaseResponse[dict](
+                status="error", message="服务器内部错误，请稍后重试"
+            )
+    return wrapper
+
 # 单接口无状态同步版
 @router.post("/google", response_model=BaseResponse[dict])
+@handle_google_errors
 async def generate_video_tags(request: Request):
     try:
         # 解析请求体
@@ -29,9 +59,9 @@ async def generate_video_tags(request: Request):
                 status="error", message="缺少必填参数'url'"
             )
         # 验证视频打标签的提示词维度参数
-        if not body or "dismensions" not in body or body["dismensions"] not in ["vision", "audio", "content-semantics", "commercial-value", "all"]:
+        if not body or "dimensions" not in body or body["dimensions"] not in Settings.VIDEO_DIMENSIONS + ["all"]:
             return BaseResponse[dict](
-                status="error", message="缺少必填参数'dismensions'或值不合法"
+                status="error", message="缺少必填参数'dimensions'或值不合法"
             )
         
         try:
@@ -79,7 +109,7 @@ async def generate_video_tags(request: Request):
                 data=None,
             )
 
-        # 调用Google服务生成标签
+        # 调用 Google 服务生成标签
         google_file = None
         try:
             # 实例化 GoogleVisionService 服务
@@ -87,11 +117,11 @@ async def generate_video_tags(request: Request):
             # 上传文件
             google_file = vision_service.upload_file(video_path)
             logger.info(f"【video-router】上传文件成功:{video_path}")
-            dimensions = body["dismensions"]
+            dimensions = body["dimensions"]
             # 全部维度的标签生成
             if dimensions == "all":
                 # 按顺序处理四个维度的标签生成
-                dimension_list = ["vision", "audio", "content-semantics", "commercial-value"]
+                dimension_list = Settings.VIDEO_DIMENSIONS
                 merged_tags = {}
                 
                 for dim in dimension_list:
@@ -126,11 +156,15 @@ async def generate_video_tags(request: Request):
             return BaseResponse[dict](
                 status="error", message="模型响应格式错误"
             )
-        except Exception as e:
-            logger.error(f"标签生成失败: {str(e)}")
+        except GoogleTagGenerationError as e:
+            # 这些错误已经经过重试机制处理，可以直接返回错误
+            logger.error(f"Google服务错误: {str(e)}")
             return BaseResponse[dict](
-                status="error", message="视频标签生成失败，请稍后重试"
+                status="error", message=str(e)
             )
+        except (ConnectionError, TimeoutError) as e:
+            # 网络相关错误，让内层重试机制处理
+            raise
         # 清理文件
         finally:
             if google_file:  # 确保 google_file 已成功赋值
