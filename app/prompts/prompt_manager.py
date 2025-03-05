@@ -53,8 +53,8 @@ class PromptManager:
         if template_name not in [
             "vision",
             "audio",
-            "content-semantics",
-            "commercial-value",
+            "content",
+            "business",
         ]:
             logger.info(f"【prompt-manager】- 提示词非法{template_name}")
             raise Exception(f"提示词非法: {template_name}")
