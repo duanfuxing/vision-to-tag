@@ -12,3 +12,4 @@ redis
 pymysql
 sqlalchemy
 Jinja2
+google-api-core
