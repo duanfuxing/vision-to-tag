@@ -2,6 +2,7 @@ import os
 from jinja2 import Environment, FileSystemLoader, Template
 from typing import Dict
 from app.services.logger import get_logger
+from config import Settings
 
 # 日志
 logger = get_logger()
@@ -50,12 +51,7 @@ class PromptManager:
         :return: 渲染后的提示词文本
         """
         # 确保 template_name 有效
-        if template_name not in [
-            "vision",
-            "audio",
-            "content-semantics",
-            "commercial-value",
-        ]:
+        if template_name not in Settings.VIDEO_DIMENSIONS:
             logger.info(f"【prompt-manager】- 提示词非法{template_name}")
             raise Exception(f"提示词非法: {template_name}")
         # 确保模板名称有.jinja后缀
