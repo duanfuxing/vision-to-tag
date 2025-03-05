@@ -1,6 +1,6 @@
 import time
 import asyncio
-from typing import Dict, Any, Optional
+from typing import Optional
 from redis import Redis
 from sqlalchemy.orm import Session
 from app.db.db_decorators import SessionLocal, retry_on_db_error
@@ -9,12 +9,11 @@ from app.models.task import Task
 from app.services.video_service import VideoService
 from app.services.google_vision import GoogleVisionService
 from app.services.logger import get_logger
+from config import Settings
 import json
 import os
-import requests
 
 logger = get_logger()
-
 
 class RpaConsumer:
     def __init__(self, db: Session, redis: Redis):
@@ -79,6 +78,7 @@ class RpaConsumer:
         """将任务移动到失败队列"""
         self.redis.lpush(f"{self.platform}:task_queue_failed", task_id)
 
+    # 下载视频
     async def download_video(self, task_id: str, url: str) -> str:
         """下载视频文件"""
         download_start = time.time()
@@ -86,129 +86,193 @@ class RpaConsumer:
         if not video_path:
             error_msg = f"【RpaConsumer】- 视频下载失败: task_id={task_id}, url={url}"
             logger.error(error_msg)
+            # 更新任务状态为错误
+            await self.update_task_status(task_id, "failed", error_msg)
             raise Exception(error_msg)
         download_time = round(time.time() - download_start, 3)
         logger.info(
             f"【RpaConsumer】- 视频下载成功: {video_path}, 耗时={download_time}秒"
         )
         return video_path
-
-    async def generate_video_tags(self, task_id: str, video_path: str) -> dict:
-        """生成视频标签"""
-        logger.info(f"【RpaConsumer】- 解析视频标签开始: task_id={task_id}")
-        with open("app/config/prompt.txt", "r") as f:
-            prompt = f.read()
-
-        vision_start = time.time()
-        try:
-            google_vision_service = GoogleVisionService()  # 初始化Google视频标签服务
-            vision_response = google_vision_service.generate_tag(video_path, prompt)
-            if not isinstance(vision_response, str):
-                vision_response = str(vision_response)
-        except Exception as e:
-            error_msg = (
-                f"【RpaConsumer】- 生成视频标签失败: task_id={task_id}, error={str(e)}"
-            )
-            logger.error(error_msg)
-            raise Exception(error_msg)
-        vision_time = round(time.time() - vision_start, 3)
-        logger.info(
-            f"【RpaConsumer】- 获取视频标签成功: task_id={task_id}, 耗时={vision_time}秒"
-        )
-
-        return json.loads(vision_response.strip())
-
-    async def sync_tags_to_es(self, task_id: str, task_info: str, tags: dict) -> None:
-        """同步标签到ES服务"""
-        sync_start = time.time()
-        logger.info(f"【RpaConsumer】- 开始同步标签到ES: task_info={task_info}")
-        try:
-            # 验证tags数据格式
-            if not isinstance(tags, dict):
-                error_msg = f"【RpaConsumer】- 标签数据格式错误，期望dict类型: task_id={task_id}"
-                logger.error(error_msg)
-                raise ValueError(error_msg)
-
-            if not tags:
-                error_msg = f"【RpaConsumer】- 标签数据为空: task_id={task_id}"
-                logger.error(error_msg)
-                raise ValueError(error_msg)
-
-            # 根据task_info['env']选择ES API URL
-            if task_info.get("env") == "production":
-                es_api_url = os.getenv("ES_API_URL_PROD")
-            else:
-                es_api_url = os.getenv("ES_API_URL_DEVE")
-
-            if not es_api_url:
-                error_msg = f"【RpaConsumer】- ES_API_URL环境变量未配置，请检查.env文件: task_id={task_id}"
-                logger.error(error_msg)
-                raise Exception(error_msg)
-
-            # 构造请求数据
-            material_ids = (
-                json.loads(task_info["material_id"]) if task_info["material_id"] else []
-            )
-            if not isinstance(material_ids, list):
-                material_ids = [material_ids]
-
-            request_data = {
-                "material_ids": material_ids,
-                "tags": tags,
-            }
-
-            response = requests.request(
-                "POST",
-                es_api_url,
-                headers={"Content-Type": "application/json"},
-                data=json.dumps(request_data),
-                timeout=300,
-            )
-            response.raise_for_status()
-
-            resp_data = response.json()
-            if resp_data.get("code") != 10000:
-                error_msg = (
-                    f"ES入库失败: task_id={task_id}, message={resp_data.get('message')}"
-                )
-                logger.error(error_msg)
-                raise Exception(error_msg)
-
-            sync_time = round(time.time() - sync_start, 3)
-            logger.info(
-                f"【RpaConsumer】- 同步标签到ES成功: task_id={task_id}, 耗时={sync_time}秒"
-            )
-
-        except requests.exceptions.Timeout:
-            error_msg = f"【RpaConsumer】- ES入库服务请求超时: task_id={task_id}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
-        except requests.exceptions.RequestException as e:
-            error_msg = f"【RpaConsumer】- ES入库服务请求异常: task_id={task_id}, error={str(e)}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
-        except ValueError as e:
-            error_msg = f"【RpaConsumer】- ES入库服务响应解析失败: task_id={task_id}, error={str(e)}"
-            logger.error(error_msg)
-            raise Exception(error_msg)
-
+    
     @retry_on_db_error(max_retries=3, base_delay=1)
-    async def update_mysql_tags(self, task_id: str, tags: dict) -> None:
-        """更新MySQL中的标签"""
-        update_start = time.time()
+    async def update_dimension_result(self, task_id: str, total_result: dict):
+        """更新处理结果到数据库
+        
+        Args:
+            task_id (str): 任务ID
+            total_result (dict): {
+                "tags": {
+                    "dimension1": [...],
+                    "dimension2": [...]
+                },
+                "message": {
+                    "dimension1": {"status": "success|failed", "message": "..."},
+                    "dimension2": {"status": "success|failed", "message": "..."}
+                }
+            }
+        """
         task = self.db.query(Task).filter(Task.task_id == task_id).first()
         if task:
             try:
-                task.tags = tags
-                self.db.commit()
-                update_time = round(time.time() - update_start, 3)
-                logger.info(
-                    f"【RpaConsumer】- DB更新标签成功: task_id={task_id}, 耗时={update_time}秒"
+                # 更新tags字段
+                task.tags = total_result["tags"]
+                
+                # 更新message字段
+                task.message = total_result["message"]
+                
+                # 检查是否有任何维度处理出错
+                has_failed = any(
+                    msg.get("status") == "failed" 
+                    for msg in total_result["message"].values()
                 )
+                
+                # 更新任务状态
+                task.status = "failed" if has_failed else "completed"
+                
+                # 更新任务完成时间
+                task.processed_end = time.strftime("%Y-%m-%d %H:%M:%S")
+
+                self.db.commit()
+                logger.info(f"【RpaConsumer】- 结果更新成功: task_id={task_id}, status={task.status}")
             except Exception as e:
-                error_msg = f"【RpaConsumer】- 更新MySQL标签失败: task_id={task_id}, error={str(e)}"
+                error_msg = f"【RpaConsumer】- 更新结果失败: task_id={task_id}, error={str(e)}"
                 logger.error(error_msg)
                 raise Exception(error_msg)
+
+    async def generate_video_tags(self, task_id: str, video_path: str, dimensions: str) -> dict:
+        """生成视频标签，返回所有维度的处理结果
+        
+        Returns:
+            dict: {
+                "tags": {
+                    "dimension1": [...],
+                    "dimension2": [...]
+                },
+                "message": {
+                    "dimension1": {"status": "success|failed", "message": "..."},
+                    "dimension2": {"status": "success|failed", "message": "..."}
+                }
+            }
+        """
+        logger.info(f"【RpaConsumer】- 解析视频标签开始: task_id={task_id}")
+        vision_start = time.time()
+        
+        # 初始化结果数据结构
+        dimension_results = {
+            dim: {
+                "tags": [],
+                "message": {"status": "success", "message": "waiting"}
+            }
+            for dim in (Settings.VIDEO_DIMENSIONS if dimensions == "all" else [dimensions])
+        }
+        
+        vision_service = None
+        google_file = None
+        
+        try:
+            # 初始化服务
+            vision_service = GoogleVisionService()
+            
+            # 上传文件
+            try:
+                google_file = vision_service.upload_file(video_path)
+                logger.info(f"【RpaConsumer】上传文件成功:{video_path}")
+            except Exception as upload_error:
+                error_msg = f"上传文件失败: {str(upload_error)}"
+                logger.error(f"【RpaConsumer】- {error_msg}")
+                raise Exception(error_msg)
+
+            # 处理每个维度
+            for dimension in dimension_results.keys():
+                result = await self._process_single_dimension(google_file, dimension, vision_service)
+                dimension_results[dimension] = result
+                
+        except Exception as e:
+            err_msg = f"【RpaConsumer】- 生成视频标签失败: task_id={task_id}, error={str(e)}"
+            logger.error(err_msg)
+            raise Exception(err_msg)
+        finally:
+            # 资源清理
+            await self._cleanup_resources(vision_service, google_file, video_path)
+
+        # 重组结果格式
+        all_dimension_results = {
+            "tags": {dim: results["tags"] for dim, results in dimension_results.items()},
+            "message": {dim: results["message"] for dim, results in dimension_results.items()}
+        }
+
+        vision_time = round(time.time() - vision_start, 3)
+        logger.info(f"【RpaConsumer】- 获取视频标签完成: task_id={task_id}, 耗时={vision_time}秒")
+        return all_dimension_results
+
+    async def _process_single_dimension(self, google_file: str, dimension: str, 
+                                     vision_service: GoogleVisionService) -> dict:
+        """处理单个维度的标签生成
+        
+        Returns:
+            dict: {
+                "tags": list 标签列表,
+                "message": {
+                    "status": str "success" 或 "failed",
+                    "message": str 成功或错误信息
+                }
+            }
+        """
+        try:
+            dim_start = time.time()
+            
+            # 生成标签
+            response = vision_service.generate_tag(google_file, dimension)
+            if not isinstance(response, str):
+                response = str(response)
+            
+            # 解析结果
+            dimension_tags = json.loads(response.strip())
+            
+            dim_time = round(time.time() - dim_start, 3)
+            logger.info(f"【RpaConsumer】- {dimension} 维度处理完成，耗时={dim_time}秒")
+            
+            return {
+                "tags": dimension_tags,
+                "message": {
+                    "status": "success",
+                    "message": "success"
+                }
+            }
+            
+        except json.JSONDecodeError as json_error:
+            error_msg = f"解析维度 {dimension} 的JSON结果失败: {str(json_error)}"
+            logger.error(f"【RpaConsumer】- {error_msg}")
+            return {
+                "tags": [],
+                "message": {
+                    "status": "failed",
+                    "message": error_msg
+                }
+            }
+            
+        except Exception as e:
+            error_msg = f"处理维度 {dimension} 时发生错误: {str(e)}"
+            logger.error(f"【RpaConsumer】- {error_msg}")
+            return {
+                "tags": [],
+                "message": {
+                    "status": "failed",
+                    "message": error_msg
+                }
+            }
+
+    async def _cleanup_resources(self, vision_service: Optional[GoogleVisionService], 
+                               google_file: Optional[str], video_path: str) -> None:
+        """清理资源"""
+        try:
+            if vision_service and google_file:
+                vision_service.delete_google_file(google_file=google_file)
+            if video_path and os.path.exists(video_path):
+                vision_service.delete_local_file(file_path=video_path)
+        except Exception as e:
+            logger.error(f"【RpaConsumer】- 清理资源失败: {str(e)}")
 
     async def process_task(self, task_id: str):
         """处理单个任务"""
@@ -248,17 +312,15 @@ class RpaConsumer:
                 video_path = await self.download_video(task_id, task_info["url"])
 
                 # 生成视频标签
-                tags = await self.generate_video_tags(task_id, video_path)
-                logger.info(f"【RpaConsumer】- 生成视频标签成功: {tags}")
+                total_result = await self.generate_video_tags(task_id, video_path, task_info["dimensions"])
+                logger.info(f"【RpaConsumer】- 生成视频标签成功")
 
-                # 同步标签到ES
-                await self.sync_tags_to_es(task_id, task_info, tags)
+                # 更新数据库
+                await self.update_dimension_result(
+                    task_id=task_id,
+                    total_result=total_result,
+                )
 
-                # 更新MySQL中的标签
-                await self.update_mysql_tags(task_id, tags)
-
-                # 更新任务状态为完成
-                await self.update_task_status(task_id, "completed", "success")
                 total_time = round(time.time() - start_time, 3)
                 logger.info(
                     f"【RpaConsumer】- 任务处理完成: task_id={task_id}, 总耗时={total_time}秒"

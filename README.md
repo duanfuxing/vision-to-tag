@@ -1,7 +1,10 @@
 # Vision-to-tag 视频标签生成服务
 
 ## 项目介绍
-Vision-to-tag是一个基于Google的gemini-2.0-pro-exp-02-05模型实现的视频标签生成服务。该服务能够自动分析视频内容，提取关键场景，并生成相应的标签描述，数据提交至ES服务。
+Vision-to-tag是一个基于Google的 gemini-2.0-flash 模型实现的视频标签生成服务 
+
+该服务能够自动分析视频内容，提取关键场景，并生成相应的标签描述 
+
 
 ## 系统架构
 [API Server] → [MySQL] ↔ [Redis]
@@ -136,13 +139,30 @@ python import_accounts.py --file google_accounts.json
 
 ## 部署说明
 
-### Docker部署
+### MiniConda 管理环境
 ```bash
-# 构建镜像
-docker-compose build
+# 下载 MiniConda
+wget https://repo.anaconda.com/miniconda/Miniconda3-latest-Linux-x86_64.sh
+# 安装 MiniConda
+bash Miniconda3-latest-Linux-x86_64.sh
+# 一路 enter
+# 生效 .bashrc
+source ~/.bashrc
+# 验证安装
+conda --version
+# 创建虚拟环境
+conda create -n vision-to-tag python=3.11
+# 激活环境
+conda activate vision-to-tag
+# 退出环境
+conda deactivate
+```
 
-# 启动服务
-docker-compose up -d
+### Supervisor 守护进程
+```bash
+# 安装 supervisor
+sudo apt install supervisor
+# 更新配置文件
 ```
 
 ### 本地部署
@@ -168,7 +188,7 @@ POST /api/v1/task/create
     "url": "http://example.com/video.mp4", // 必填参数，视频URL
     "uid": 123, // 可选参数，uid
     "platform": "rpa", // 必填参数 rpa, miaobi
-    "material_id": [1,2] // 必填参数，用于区分不同的素材
+    "dimensions": "all" // 拆分维度 all-全部 vision-视觉
 }
 
 成功响应
@@ -238,5 +258,3 @@ python clean_videos.py
 系统默认每天凌晨3点自动执行缓存清理任务，清理7天前的视频文件。此功能在Docker环境中已配置，无需额外设置。如需调整清理时间或策略，可修改docker-compose.yml中的定时任务配置。
 
 ```bash
-# 手动触发清理（Docker环境）
-docker exec vision_tag python clean_videos.py

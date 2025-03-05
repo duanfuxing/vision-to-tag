@@ -38,6 +38,7 @@ class Logger:
 
         # 创建logger
         self.logger = logging.getLogger("VisionToTag")
+        # 设置全局日志级别为 DEBUG
         self.logger.setLevel(logging.DEBUG)
 
         # 创建TimedRotatingFileHandler
@@ -48,6 +49,7 @@ class Logger:
             backupCount=30,
             encoding="utf-8",
         )
+        file_handler.setLevel(logging.DEBUG)
 
         # 设置日志格式
         formatter = logging.Formatter(
@@ -61,6 +63,8 @@ class Logger:
 
             # 添加控制台输出
             console_handler = logging.StreamHandler()
+            # 控制台 Handler 设置为 INFO 级别
+            console_handler.setLevel(logging.INFO)
             console_handler.setFormatter(formatter)
             self.logger.addHandler(console_handler)
 

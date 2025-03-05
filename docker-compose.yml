@@ -1,44 +1,4 @@
 services:
-  app:
-    image: catchoco/vision-to-tag
-    container_name: vision-to-tag
-    build:
-      context: .
-      dockerfile: Dockerfile
-    ports:
-      - "${API_PORT}:${API_PORT}"
-    env_file:
-      - .env
-    environment:
-      - REDIS_HOST=${REDIS_HOST}
-      - REDIS_PORT=${REDIS_PORT}
-    volumes:
-      - ./logs:${LOG_DIR}
-      - ./download:${DOWNLOAD_DIR}
-      - ./app:/app/app
-      - ./.env:/app/.env
-      - ./main.py:/app/main.py
-      - ./clean_videos.py:/app/clean_videos.py
-      - ./import_accounts.py:/app/import_accounts.py
-      - ./supervisor:/etc/supervisor/conf.d
-    depends_on:
-      - redis
-    networks:
-      - vision_net
-    command: >
-      sh -c '
-        mkdir -p /app/logs/supervisor && \
-        touch /app/logs/supervisor/supervisord.log && \
-        touch /app/logs/supervisor/rpa_consumer.log && \
-        touch /app/logs/supervisor/miaobi_consumer.log && \
-        chmod -R 755 /app/logs/supervisor/ && \
-        chown -R root:root /app/logs/supervisor/ && \
-        supervisord -c /etc/supervisor/conf.d/supervisord.conf &
-        python main.py &
-        (crontab -l 2>/dev/null; echo "0 3 * * * cd /app && python clean_videos.py") | crontab -
-        service cron start && tail -f /dev/null'
-
-
   redis:
     image: redis:7-alpine
     container_name: vision-to-tag-redis
@@ -53,7 +13,6 @@ services:
     restart: unless-stopped
     networks:
       - vision_net
-
 
   mysql:
     image: mysql:8.0
@@ -74,7 +33,6 @@ services:
     networks:
       - vision_net
     command: --default-authentication-plugin=mysql_native_password
-
 
 volumes:
   mysql_data:
