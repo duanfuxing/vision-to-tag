@@ -86,67 +86,81 @@
     - 超预期表达：故意制造声画错位引发的认知颠覆
 #输出格式：
 {
-    "content_semantic_analysis": {
-        "theme_and_core": {
-            "tags": ["知识科普","产品种草"],
-            "confidence": {
-                "知识科普":0.8,
-                "产品种草":0.9,
-            },
-            "related_tags": {
-                "知识关联": ["专业术语", "数据可视化", "行业报告"],
-                "confidence": {
-                    "专业术语": 0.76
-                }
-            }
+    "theme_and_core": {
+        "tags": ["知识科普","产品种草"],
+        "confidence": {
+            "知识科普":0.8,
+            "产品种草":0.9,
         },
-        "narrative_structure": {
-            "tags": ["剧情反转","情绪调动"],
+        "related_tags": {
+            "知识关联": ["专业术语", "数据可视化", "行业报告"],
             "confidence": {
-                "剧情反转":0.8,
-                "情绪调动":0.95
-            },
-            "related_tags": {
-                "叙事技巧": ["倒叙结构", "悬念设置", "对比蒙太奇"],
-                "confidence": {
-                    "悬念设置": 0.85
-                }
+                "专业术语": 0.76
             }
+        }
+    },
+    "narrative_structure": {
+        "tags": ["剧情反转","情绪调动"],
+        "confidence": {
+            "剧情反转":0.8,
+            "情绪调动":0.95
         },
-        "visual_semantic_system": {
-            "tags": [],
+        "related_tags": {
+            "叙事技巧": ["倒叙结构", "悬念设置", "对比蒙太奇"],
             "confidence": {
-
-            },
-            "related_tags": {
-
+                "悬念设置": 0.85
             }
+        }
+    },
+    "visual_semantic_system": {
+        "tags": ["色彩对比", "动态转场", "信息图表"],
+        "confidence": {
+            "色彩对比": 0.85,
+            "动态转场": 0.78
         },
-        "text_interaction_system": {
-            "tags": [],
+        "related_tags": {
+            "视觉叙事": ["视觉隐喻", "符号象征", "节奏控制"],
             "confidence": {
-
-            },
-            "related_tags": {
-
+                "视觉隐喻": 0.79
             }
+        }
+    },
+    "text_interaction_system": {
+        "tags": ["交互式按钮", "悬浮提示", "进度控制"],
+        "confidence": {
+            "交互式按钮": 0.80,
+            "悬浮提示": 0.75
         },
-        "value_delivery_system": {
-            "tags": [],
+        "related_tags": {
+            "用户引导": ["分段导航", "动态反馈", "可点击标签"],
             "confidence": {
-
-            },
-            "related_tags": {
-
+                "分段导航": 0.82
             }
+        }
+    },
+    "value_delivery_system": {
+        "tags": ["痛点分析", "解决方案展示", "用户见证"],
+        "confidence": {
+            "痛点分析": 0.88,
+            "解决方案展示": 0.82
         },
-        "cross-modal_semantic_collaboration": {
-            "tags": [],
+        "related_tags": {
+            "情感共鸣": ["情感故事", "案例研究", "数据支撑"],
             "confidence": {
-
-            },
-            "related_tags": {
-
+                "情感故事": 0.85
+            }
+        }
+    },
+    "cross-modal_semantic_collaboration": {
+        "tags": ["音画同步", "图文互补", "多感官刺激"],
+        "confidence": {
+            "音画同步": 0.83,
+            "图文互补": 0.79
+        },
+        "related_tags": {
+            "模态整合": ["节奏匹配", "焦点引导", "内容呼应"],
+            "confidence": {
+                "节奏匹配": 0.81
             }
         }
     }
