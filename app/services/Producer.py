@@ -4,7 +4,6 @@ from typing import Dict, Any
 from app.models.task import Task
 from app.db.db_decorators import SessionLocal, retry_on_db_error
 from app.db.redis_decorators import get_redis_client
-import json
 
 # 配置日志记录器
 logger = get_logger()
@@ -52,7 +51,10 @@ class Producer:
             pipeline = self.redis.pipeline()
             try:
                 # 获取平台前缀
-                platform = task_data["platform"]
+                if task_data["platform"] in ["rpa", "files"]:
+                    platform = "rpa"
+                else:
+                    platform = "miaobi"
                 # 写入任务详情
                 pipeline.hset(
                     f"{platform}:task_info:{task_id}",
