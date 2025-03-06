@@ -14,8 +14,11 @@ import json
 
 # 定义枚举类型来限制参数值
 class Platform(str, Enum):
+    # 归属 RpaConsumer
+    FILE = "files"
     RPA = "rpa"
-    MIAOBI = "miaobi"
+    # 归属 MiaobiConsumer
+    MIAOBI = "user"
 
 class Dimension(str, Enum):
     VISION = "vision"
