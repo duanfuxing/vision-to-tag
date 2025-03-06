@@ -22,6 +22,10 @@ class Producer:
         start_time = time.time()
         try:
             uid = task_data.get("uid", "0")
+            # 转换 URL 和枚举值为字符串
+            url = str(task_data["url"])
+            platform = str(task_data["platform"].value if hasattr(task_data["platform"], "value") else task_data["platform"])
+            dimensions = str(task_data["dimensions"].value if hasattr(task_data["dimensions"], "value") else task_data["dimensions"])
             logger.info(
                 f"【Producer-{task_data['platform']}】- 开始创建任务: {task_id}, 参数: {task_data}"
             )
@@ -30,10 +34,10 @@ class Producer:
             task = Task(
                 task_id=task_id,
                 uid=uid,
-                url=task_data["url"],
-                platform=task_data["platform"],
+                url=url,
+                platform=platform,
                 status="pending",
-                dimensions=task_data["dimensions"],
+                dimensions=dimensions,
                 message={},
                 tags={},
             )
@@ -53,11 +57,11 @@ class Producer:
                 pipeline.hset(
                     f"{platform}:task_info:{task_id}",
                     mapping={
-                        "url": task_data["url"],
+                        "url": url,
                         "uid": uid,
-                        "platform": task_data["platform"],
+                        "platform": platform,
                         "status": "pending",
-                        "dimensions":task_data["dimensions"],
+                        "dimensions":dimensions,
                         "retry_count": "0",
                         "created_at": str(int(time.time())),
                     },
