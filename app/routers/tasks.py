@@ -116,10 +116,21 @@ async def get_task(task_id: str):
         if not task:
             return create_error_response("error", f"未找到任务ID: {task_id}", task_id)
         
-        # 构建响应数据
+        # 获取所有非成功状态的消息
+        error_messages = []
+        if task.message:
+            for dim, msg_info in task.message.items():
+                if msg_info.get("status") != "success":
+                    error_message = msg_info.get("message", "")
+                    if error_message:
+                        error_messages.append(f"{dim}: {error_message}")
+        
+        # 如果有错误消息，则拼接；否则使用默认成功消息
+        response_message = "; ".join(error_messages) if error_messages else "success"
+        
         return BaseResponse[dict](
-            status="success",
-            message="success",
+            status=task.status,
+            message=response_message,
             task_id=task_id,
             data=task.tags
         )
