@@ -57,7 +57,16 @@ class MiaobiConsumer:
             task = self.db.query(Task).filter(Task.task_id == task_id).first()
             if task:
                 task.status = status
-                task.message = message
+
+                # 使用固定格式更新 message 字段
+                if message:
+                    task.message = {
+                        "all": {
+                            "status": "failed",
+                            "message": message
+                        }
+                    }
+                
                 if status == "processing":
                     task.processed_start = time.strftime("%Y-%m-%d %H:%M:%S")
                 elif status in ["completed", "failed"]:
