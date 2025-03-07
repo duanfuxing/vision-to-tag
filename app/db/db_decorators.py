@@ -28,10 +28,10 @@ DATABASE_URL = (
 engine = create_engine(
     DATABASE_URL,
     poolclass=QueuePool,
-    pool_size=5,
+    pool_size=10,
     pool_pre_ping=True,
-    max_overflow=10,
-    pool_timeout=30,
+    max_overflow=20,
+    pool_timeout=60,
     pool_recycle=1800,
 )
 
