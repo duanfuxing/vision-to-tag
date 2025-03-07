@@ -35,4 +35,11 @@ if __name__ == "__main__":
     import uvicorn
 
     port = int(Settings.API_PORT)
-    uvicorn.run("main:app", host=Settings.API_HOST, port=port)
+    uvicorn.run(
+        "main:app",
+        host=Settings.API_HOST,
+        port=port,
+        workers=8,
+        limit_concurrency=1024,
+        timeout_keep_alive=120
+    )
