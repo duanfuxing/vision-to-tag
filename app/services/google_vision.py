@@ -101,7 +101,7 @@ class GoogleVisionService:
             logger.info(err_msg)
             raise Exception(err_msg)
     
-    def _wait_for_file_active(self, file_name: str, timeout: int = 60) -> bool:
+    def _wait_for_file_active(self, file_name: str, timeout: int = 600) -> bool:
         """
         等待文件状态变为 ACTIVE
         Args:
@@ -136,7 +136,7 @@ class GoogleVisionService:
             # 上传文件
             video_file = self.client.files.upload(file=file_path)
             # 等待一段时间后重试
-            time.sleep(self.retry_interval * 3)
+            time.sleep(self.retry_interval * 6)
             # 等待文件状态变为 ACTIVE
             if not self._wait_for_file_active(video_file.name):
                 err_msg = f"【Google】- 文件未能激活：{video_file.name}"
