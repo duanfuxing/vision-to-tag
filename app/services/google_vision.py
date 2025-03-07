@@ -135,7 +135,8 @@ class GoogleVisionService:
         try:
             # 上传文件
             video_file = self.client.files.upload(file=file_path)
-            
+            # 等待一段时间后重试
+            time.sleep(self.retry_interval * 3)
             # 等待文件状态变为 ACTIVE
             if not self._wait_for_file_active(video_file.name):
                 err_msg = f"【Google】- 文件未能激活：{video_file.name}"
