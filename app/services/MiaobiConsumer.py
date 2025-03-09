@@ -15,9 +15,9 @@ import os
 
 logger = get_logger()
 
+
 class MiaobiConsumer:
-    def __init__(self, db: Session, redis: Redis):
-        self.db = db
+    def __init__(self, redis: Redis):
         self.redis = redis
         self.redis.select(1)  # 切换到Redis 1号数据库
         self.video_service = VideoService()  # 初始化视频服务
@@ -53,25 +53,21 @@ class MiaobiConsumer:
                     f"{self.platform}:task_info:{task_id}", "message", message
                 )
 
-            # 更新MySQL中的任务状态
-            task = self.db.query(Task).filter(Task.task_id == task_id).first()
-            if task:
-                task.status = status
+            # 使用上下文管理器创建新的数据库会话
+            with SessionLocal() as db:
+                task = db.query(Task).filter(Task.task_id == task_id).first()
+                if task:
+                    task.status = status
 
-                # 使用固定格式更新 message 字段
-                if message:
-                    task.message = {
-                        "all": {
-                            "status": "failed",
-                            "message": message
-                        }
-                    }
-                
-                if status == "processing":
-                    task.processed_start = time.strftime("%Y-%m-%d %H:%M:%S")
-                elif status in ["completed", "failed"]:
-                    task.processed_end = time.strftime("%Y-%m-%d %H:%M:%S")
-                self.db.commit()
+                    # 使用固定格式更新 message 字段
+                    if message:
+                        task.message = {"all": {"status": "failed", "message": message}}
+
+                    if status == "processing":
+                        task.processed_start = time.strftime("%Y-%m-%d %H:%M:%S")
+                    elif status in ["completed", "failed"]:
+                        task.processed_end = time.strftime("%Y-%m-%d %H:%M:%S")
+                    db.commit()
         except Exception as e:
             logger.error(f"【MiaobiConsumer】- 更新任务状态失败 {task_id}: {str(e)}")
             raise
@@ -93,7 +89,9 @@ class MiaobiConsumer:
         download_start = time.time()
         video_path = await self.video_service.download_video(url, task_id)
         if not video_path:
-            error_msg = (f"【MiaobiConsumer】- 视频下载失败: task_id={task_id}, url={url}")
+            error_msg = (
+                f"【MiaobiConsumer】- 视频下载失败: task_id={task_id}, url={url}"
+            )
             logger.error(error_msg)
             # 更新任务状态为错误
             await self.update_task_status(task_id, "failed", error_msg)
@@ -107,7 +105,7 @@ class MiaobiConsumer:
     @retry_on_db_error(max_retries=3, base_delay=1)
     async def update_dimension_result(self, task_id: str, total_result: dict):
         """更新处理结果到数据库
-        
+
         Args:
             task_id (str): 任务ID
             total_result (dict): {
@@ -121,37 +119,42 @@ class MiaobiConsumer:
                 }
             }
         """
-        task = self.db.query(Task).filter(Task.task_id == task_id).first()
-        if task:
-            try:
-                # 更新tags字段
-                task.tags = total_result["tags"]
-                
-                # 更新message字段
-                task.message = total_result["message"]
-                
-                # 检查是否有任何维度处理出错
-                has_failed = any(
-                    msg.get("status") == "failed" 
-                    for msg in total_result["message"].values()
-                )
-                
-                # 更新任务状态
-                task.status = "failed" if has_failed else "completed"
-                
-                # 更新任务完成时间
-                task.processed_end = time.strftime("%Y-%m-%d %H:%M:%S")
+        with SessionLocal() as db:
+            task = db.query(Task).filter(Task.task_id == task_id).first()
+            if task:
+                try:
+                    # 更新tags字段
+                    task.tags = total_result["tags"]
 
-                self.db.commit()
-                logger.info(f"【MiaobiConsumer】- 结果更新成功: task_id={task_id}, status={task.status}")
-            except Exception as e:
-                error_msg = f"【MiaobiConsumer】- 更新结果失败: task_id={task_id}, error={str(e)}"
-                logger.error(error_msg)
-                raise Exception(error_msg)
+                    # 更新message字段
+                    task.message = total_result["message"]
 
-    async def generate_video_tags(self, task_id: str, video_path: str, dimensions: str) -> dict:
+                    # 检查是否有任何维度处理出错
+                    has_failed = any(
+                        msg.get("status") == "failed"
+                        for msg in total_result["message"].values()
+                    )
+
+                    # 更新任务状态
+                    task.status = "failed" if has_failed else "completed"
+
+                    # 更新任务完成时间
+                    task.processed_end = time.strftime("%Y-%m-%d %H:%M:%S")
+
+                    db.commit()
+                    logger.info(
+                        f"【MiaobiConsumer】- 结果更新成功: task_id={task_id}, status={task.status}"
+                    )
+                except Exception as e:
+                    error_msg = f"【MiaobiConsumer】- 更新结果失败: task_id={task_id}, error={str(e)}"
+                    logger.error(error_msg)
+                    raise Exception(error_msg)
+
+    async def generate_video_tags(
+        self, task_id: str, video_path: str, dimensions: str
+    ) -> dict:
         """生成视频标签，返回所有维度的处理结果
-        
+
         Returns:
             dict: {
                 "tags": {
@@ -166,23 +169,22 @@ class MiaobiConsumer:
         """
         logger.info(f"【MiaobiConsumer】- 解析视频标签开始: task_id={task_id}")
         vision_start = time.time()
-        
+
         # 初始化结果数据结构
         dimension_results = {
-            dim: {
-                "tags": [],
-                "message": {"status": "success", "message": "waiting"}
-            }
-            for dim in (Settings.VIDEO_DIMENSIONS if dimensions == "all" else [dimensions])
+            dim: {"tags": [], "message": {"status": "success", "message": "waiting"}}
+            for dim in (
+                Settings.VIDEO_DIMENSIONS if dimensions == "all" else [dimensions]
+            )
         }
-        
+
         vision_service = None
         google_file = None
-        
+
         try:
             # 初始化服务
             vision_service = GoogleVisionService()
-            
+
             # 上传文件
             try:
                 google_file = vision_service.upload_file(video_path)
@@ -194,9 +196,11 @@ class MiaobiConsumer:
 
             # 处理每个维度
             for dimension in dimension_results.keys():
-                result = await self._process_single_dimension(google_file, dimension, vision_service)
+                result = await self._process_single_dimension(
+                    google_file, dimension, vision_service
+                )
                 dimension_results[dimension] = result
-                
+
         except Exception as e:
             err_msg = f"【MiaobiConsumer】- 生成视频标签失败: task_id={task_id}, error={str(e)}"
             logger.error(err_msg)
@@ -207,18 +211,25 @@ class MiaobiConsumer:
 
         # 重组结果格式
         all_dimension_results = {
-            "tags": {dim: results["tags"] for dim, results in dimension_results.items()},
-            "message": {dim: results["message"] for dim, results in dimension_results.items()}
+            "tags": {
+                dim: results["tags"] for dim, results in dimension_results.items()
+            },
+            "message": {
+                dim: results["message"] for dim, results in dimension_results.items()
+            },
         }
 
         vision_time = round(time.time() - vision_start, 3)
-        logger.info(f"【MiaobiConsumer】- 获取视频标签完成: task_id={task_id}, 耗时={vision_time}秒")
+        logger.info(
+            f"【MiaobiConsumer】- 获取视频标签完成: task_id={task_id}, 耗时={vision_time}秒"
+        )
         return all_dimension_results
 
-    async def _process_single_dimension(self, google_file: str, dimension: str, 
-                                     vision_service: GoogleVisionService) -> dict:
+    async def _process_single_dimension(
+        self, google_file: str, dimension: str, vision_service: GoogleVisionService
+    ) -> dict:
         """处理单个维度的标签生成
-        
+
         Returns:
             dict: {
                 "tags": list 标签列表,
@@ -230,50 +241,41 @@ class MiaobiConsumer:
         """
         try:
             dim_start = time.time()
-            
+
             # 生成标签
             response = vision_service.generate_tag(google_file, dimension)
             if not isinstance(response, str):
                 response = str(response)
-            
+
             # 解析结果
             dimension_tags = json.loads(response.strip())
-            
+
             dim_time = round(time.time() - dim_start, 3)
-            logger.info(f"【MiaobiConsumer】- {dimension} 维度处理完成，耗时={dim_time}秒")
-            
+            logger.info(
+                f"【MiaobiConsumer】- {dimension} 维度处理完成，耗时={dim_time}秒"
+            )
+
             return {
                 "tags": dimension_tags,
-                "message": {
-                    "status": "success",
-                    "message": "success"
-                }
+                "message": {"status": "success", "message": "success"},
             }
-            
+
         except json.JSONDecodeError as json_error:
             error_msg = f"解析维度 {dimension} 的JSON结果失败: {str(json_error)}"
             logger.error(f"【MiaobiConsumer】- {error_msg}")
-            return {
-                "tags": [],
-                "message": {
-                    "status": "failed",
-                    "message": error_msg
-                }
-            }
-            
+            return {"tags": [], "message": {"status": "failed", "message": error_msg}}
+
         except Exception as e:
             error_msg = f"处理维度 {dimension} 时发生错误: {str(e)}"
             logger.error(f"【MiaobiConsumer】- {error_msg}")
-            return {
-                "tags": [],
-                "message": {
-                    "status": "failed",
-                    "message": error_msg
-                }
-            }
+            return {"tags": [], "message": {"status": "failed", "message": error_msg}}
 
-    async def _cleanup_resources(self, vision_service: Optional[GoogleVisionService], 
-                               google_file: Optional[str], video_path: str) -> None:
+    async def _cleanup_resources(
+        self,
+        vision_service: Optional[GoogleVisionService],
+        google_file: Optional[str],
+        video_path: str,
+    ) -> None:
         """清理资源"""
         try:
             if vision_service and google_file:
@@ -288,73 +290,79 @@ class MiaobiConsumer:
         video_path = None
         start_time = time.time()
         try:
-            # 获取任务信息
-            task_info = None
-            retry_count = 0
-            while retry_count < 3:
-                try:
-                    task_info = self.redis.hgetall(
-                        f"{self.platform}:task_info:{task_id}"
-                    )
-                    break
-                except Exception as e:
-                    retry_count += 1
-                    if retry_count == 3:
-                        raise
-                    logger.warning(
-                        f"【MiaobiConsumer】- 获取任务信息重试 {retry_count}/3: {str(e)}"
-                    )
-                    await asyncio.sleep(1)
+            # 使用上下文管理器创建数据库会话
+            with SessionLocal() as db:
+                # 获取任务信息
+                task_info = None
+                retry_count = 0
+                while retry_count < 3:
+                    try:
+                        task_info = self.redis.hgetall(
+                            f"{self.platform}:task_info:{task_id}"
+                        )
+                        break
+                    except Exception as e:
+                        retry_count += 1
+                        if retry_count == 3:
+                            raise
+                        logger.warning(
+                            f"【MiaobiConsumer】- 获取任务信息重试 {retry_count}/3: {str(e)}"
+                        )
+                        await asyncio.sleep(1)
 
-            if not task_info:
-                logger.error(f"【MiaobiConsumer】- 任务 {task_id} 不存在")
-                return
+                if not task_info:
+                    logger.error(f"【MiaobiConsumer】- 任务 {task_id} 不存在")
+                    return
 
-            # 更新任务状态为处理中
-            await self.update_task_status(task_id, "processing")
-            logger.info(
-                f"【MiaobiConsumer】- 开始处理任务: {task_id}, 视频URL: {task_info.get('url')}"
-            )
-
-            try:
-                # 下载视频
-                video_path = await self.download_video(task_id, task_info["url"])
-
-                # 生成视频标签
-                total_result = await self.generate_video_tags(task_id, video_path, task_info["dimensions"])
-                logger.info(f"【MiaobiConsumer】- 生成视频标签成功")
-
-                # 更新数据库
-                await self.update_dimension_result(
-                    task_id=task_id,
-                    total_result=total_result,
-                )
-
-                total_time = round(time.time() - start_time, 3)
+                # 更新任务状态为处理中
+                await self.update_task_status(task_id, "processing")
                 logger.info(
-                    f"【MiaobiConsumer】- 任务处理完成: task_id={task_id}, 总耗时={total_time}秒"
+                    f"【MiaobiConsumer】- 开始处理任务: {task_id}, 视频URL: {task_info.get('url')}"
                 )
 
-                # 删除Redis中的任务信息
-                self.redis.delete(f"{self.platform}:task_info:{task_id}")
+                try:
+                    # 下载视频
+                    video_path = await self.download_video(task_id, task_info["url"])
 
-            except Exception as e:
-                logger.error(f"【MiaobiConsumer】- 处理任务 {task_id} 失败: {str(e)}")
-                retry_count = await self.increment_retry_count(task_id)
+                    # 生成视频标签
+                    total_result = await self.generate_video_tags(
+                        task_id, video_path, task_info["dimensions"]
+                    )
+                    logger.info(f"【MiaobiConsumer】- 生成视频标签成功")
 
-                if retry_count >= self.max_retries:
-                    await self.move_to_failed_queue(task_id)
-                    await self.update_task_status(task_id, "failed", str(e))
+                    # 更新数据库
+                    await self.update_dimension_result(
+                        task_id=task_id,
+                        total_result=total_result,
+                    )
+
+                    total_time = round(time.time() - start_time, 3)
+                    logger.info(
+                        f"【MiaobiConsumer】- 任务处理完成: task_id={task_id}, 总耗时={total_time}秒"
+                    )
+
+                    # 删除Redis中的任务信息
+                    self.redis.delete(f"{self.platform}:task_info:{task_id}")
+
+                except Exception as e:
                     logger.error(
-                        f"【MiaobiConsumer】- 任务 {task_id} 达到最大重试次数({self.max_retries})，移入失败队列"
+                        f"【MiaobiConsumer】- 处理任务 {task_id} 失败: {str(e)}"
                     )
-                else:
-                    # 重新加入队列
-                    self.redis.lpush(f"{self.platform}:task_queue", task_id)
-                    logger.warning(
-                        f"【MiaobiConsumer】- 任务 {task_id} 重试次数: {retry_count}/{self.max_retries}"
-                    )
-                raise
+                    retry_count = await self.increment_retry_count(task_id)
+
+                    if retry_count >= self.max_retries:
+                        await self.move_to_failed_queue(task_id)
+                        await self.update_task_status(task_id, "failed", str(e))
+                        logger.error(
+                            f"【MiaobiConsumer】- 任务 {task_id} 达到最大重试次数({self.max_retries})，移入失败队列"
+                        )
+                    else:
+                        # 重新加入队列
+                        self.redis.lpush(f"{self.platform}:task_queue", task_id)
+                        logger.warning(
+                            f"【MiaobiConsumer】- 任务 {task_id} 重试次数: {retry_count}/{self.max_retries}"
+                        )
+                    raise
 
         except Exception as e:
             logger.error(f"【MiaobiConsumer】- 处理任务 {task_id} 时发生错误: {str(e)}")
@@ -400,25 +408,19 @@ class MiaobiConsumer:
     @classmethod
     async def main(cls):
         """主入口函数"""
-        db = None
         redis_client = None
         try:
-            # 创建数据库会话和Redis客户端
-            db = SessionLocal()
+            # 创建Redis客户端
             redis_client = get_redis_client()
 
             # 创建消费者实例
-            consumer = cls(db, redis_client)
+            consumer = cls(redis_client)
 
             # 运行异步任务
             await consumer.run()
         except Exception as e:
             logger.error(f"【MiaobiConsumer】- 启动消费者失败: {str(e)}")
             raise
-        finally:
-            # 关闭数据库连接
-            if db:
-                db.close()
 
 
 if __name__ == "__main__":

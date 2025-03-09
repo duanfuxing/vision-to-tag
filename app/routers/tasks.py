@@ -12,6 +12,7 @@ import uuid
 import aiohttp
 import json
 
+
 # 定义枚举类型来限制参数值
 class Platform(str, Enum):
     # 归属 RpaConsumer
@@ -20,6 +21,7 @@ class Platform(str, Enum):
     # 归属 MiaobiConsumer
     MIAOBI = "user"
 
+
 class Dimension(str, Enum):
     VISION = "vision"
     AUDIO = "audio"
@@ -27,29 +29,30 @@ class Dimension(str, Enum):
     BUSINESS = "business"
     ALL = "all"
 
+
 # 请求模型
 class TaskCreateRequest(BaseModel):
     url: HttpUrl
     platform: Platform
     dimensions: Dimension
 
+
 router = APIRouter(prefix="/task", tags=["Video"])
 logger = get_logger()
+
 
 def create_error_response(status: str, message: str, task_id: str) -> BaseResponse:
     """统一的错误响应创建函数"""
     return BaseResponse[dict](
-        status=status,
-        message=message,
-        task_id=task_id,
-        data=None
+        status=status, message=message, task_id=task_id, data=None
     )
+
 
 @router.post("/create", response_model=BaseResponse[dict])
 async def task_create(request: Request):
     """创建视频标签队列任务"""
     task_id = str(uuid.uuid4())
-    
+
     try:
         # 解析并验证请求体
         try:
@@ -80,10 +83,7 @@ async def task_create(request: Request):
             return create_error_response("error", "任务创建失败", task_id)
 
         return BaseResponse[dict](
-            status="success",
-            message="success",
-            task_id=task_id,
-            data=None
+            status="success", message="success", task_id=task_id, data=None
         )
 
     except aiohttp.ClientError as e:
@@ -94,7 +94,8 @@ async def task_create(request: Request):
         err_msg = f"系统错误, error:{str(e)}, params: {params}"
         logger.error(err_msg)
         return create_error_response("error", err_msg, task_id)
-    
+
+
 @retry_on_db_error(max_retries=3)
 @router.get("/get/{task_id}", response_model=BaseResponse[dict])
 async def get_task(task_id: str):
@@ -112,10 +113,10 @@ async def get_task(task_id: str):
         # 查询任务
         db = SessionLocal()
         task = db.query(Task).filter(Task.task_id == task_id).first()
-        
+
         if not task:
             return create_error_response("error", f"未找到任务ID: {task_id}", task_id)
-        
+
         # 获取所有非成功状态的消息
         error_messages = []
         if task.message:
@@ -124,17 +125,20 @@ async def get_task(task_id: str):
                     error_message = msg_info.get("message", "")
                     if error_message:
                         error_messages.append(f"{dim}: {error_message}")
-        
+
         # 如果有错误消息，则拼接；否则使用默认成功消息
         response_message = "; ".join(error_messages) if error_messages else "success"
-        
+
         return BaseResponse[dict](
             status=task.status,
             message=response_message,
             task_id=task_id,
-            data=task.tags
+            data=task.tags,
         )
-        
+
     except Exception as e:
         logger.error(f"获取任务详情失败, task_id: {task_id}, error: {str(e)}")
         return create_error_response("error", "获取任务详情失败", task_id)
+    finally:
+        if db:
+            db.close()  # 确保连接关闭
