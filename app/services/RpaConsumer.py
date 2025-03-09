@@ -287,89 +287,89 @@ class RpaConsumer:
     async def process_task(self, task_id: str):
         video_path = None
         start_time = time.time()
+        try:
+            # 获取任务信息
+            task_info = None
+            retry_count = 0
+            while retry_count < 3:
+                try:
+                    task_info = self.redis.hgetall(
+                        f"{self.platform}:task_info:{task_id}"
+                    )
+                    break
+                except Exception as e:
+                    retry_count += 1
+                    if retry_count == 3:
+                        raise
+                    logger.warning(
+                        f"【RpaConsumer】- 获取任务信息重试 {retry_count}/3: {str(e)}"
+                    )
+                    await asyncio.sleep(1)
+
+            if not task_info:
+                logger.error(f"【RpaConsumer】- 任务 {task_id} 不存在")
+                return
+
+            # 更新任务状态为处理中
+            await self.update_task_status(task_id, "processing")
+            logger.info(
+                f"【RpaConsumer】- 开始处理任务: {task_id}, 视频URL: {task_info.get('url')}"
+            )
+
             try:
-                # 获取任务信息
-                task_info = None
-                retry_count = 0
-                while retry_count < 3:
-                    try:
-                        task_info = self.redis.hgetall(
-                            f"{self.platform}:task_info:{task_id}"
-                        )
-                        break
-                    except Exception as e:
-                        retry_count += 1
-                        if retry_count == 3:
-                            raise
-                        logger.warning(
-                            f"【RpaConsumer】- 获取任务信息重试 {retry_count}/3: {str(e)}"
-                        )
-                        await asyncio.sleep(1)
+                # 下载视频
+                video_path = await self.download_video(task_id, task_info["url"])
 
-                if not task_info:
-                    logger.error(f"【RpaConsumer】- 任务 {task_id} 不存在")
-                    return
+                # 生成视频标签
+                total_result = await self.generate_video_tags(task_id, video_path, task_info["dimensions"])
+                logger.info(f"【RpaConsumer】- 生成视频标签成功")
 
-                # 更新任务状态为处理中
-                await self.update_task_status(task_id, "processing")
-                logger.info(
-                    f"【RpaConsumer】- 开始处理任务: {task_id}, 视频URL: {task_info.get('url')}"
+                # 更新数据库
+                await self.update_dimension_result(
+                    task_id=task_id,
+                    total_result=total_result,
                 )
 
-                try:
-                    # 下载视频
-                    video_path = await self.download_video(task_id, task_info["url"])
+                total_time = round(time.time() - start_time, 3)
+                logger.info(
+                    f"【RpaConsumer】- 任务处理完成: task_id={task_id}, 总耗时={total_time}秒"
+                )
 
-                    # 生成视频标签
-                    total_result = await self.generate_video_tags(task_id, video_path, task_info["dimensions"])
-                    logger.info(f"【RpaConsumer】- 生成视频标签成功")
-
-                    # 更新数据库
-                    await self.update_dimension_result(
-                        task_id=task_id,
-                        total_result=total_result,
-                    )
-
-                    total_time = round(time.time() - start_time, 3)
-                    logger.info(
-                        f"【RpaConsumer】- 任务处理完成: task_id={task_id}, 总耗时={total_time}秒"
-                    )
-
-                    # 删除Redis中的任务信息
-                    self.redis.delete(f"{self.platform}:task_info:{task_id}")
-
-                except Exception as e:
-                    logger.error(f"【RpaConsumer】- 处理任务 {task_id} 失败: {str(e)}")
-                    retry_count = await self.increment_retry_count(task_id)
-
-                    if retry_count >= self.max_retries:
-                        await self.move_to_failed_queue(task_id)
-                        await self.update_task_status(task_id, "failed", str(e))
-                        logger.error(
-                            f"【RpaConsumer】- 任务 {task_id} 达到最大重试次数({self.max_retries})，移入失败队列"
-                        )
-                    else:
-                        # 重新加入队列
-                        self.redis.lpush(f"{self.platform}:task_queue", task_id)
-                        logger.warning(
-                            f"【RpaConsumer】- 任务 {task_id} 重试次数: {retry_count}/{self.max_retries}"
-                        )
-                    raise
+                # 删除Redis中的任务信息
+                self.redis.delete(f"{self.platform}:task_info:{task_id}")
 
             except Exception as e:
-                logger.error(f"【RpaConsumer】- 处理任务 {task_id} 时发生错误: {str(e)}")
-                await self.update_task_status(task_id, "failed", str(e))
+                logger.error(f"【RpaConsumer】- 处理任务 {task_id} 失败: {str(e)}")
+                retry_count = await self.increment_retry_count(task_id)
 
-            finally:
-                # 清理临时文件
-                if video_path and os.path.exists(video_path):
-                    try:
-                        os.remove(video_path)
-                        logger.info(f"【RpaConsumer】- 清理临时文件成功: {video_path}")
-                    except Exception as e:
-                        logger.error(f"清理临时文件失败 {video_path}: {str(e)}")
-                # 释放任务锁
-                await self.release_lock(task_id)
+                if retry_count >= self.max_retries:
+                    await self.move_to_failed_queue(task_id)
+                    await self.update_task_status(task_id, "failed", str(e))
+                    logger.error(
+                        f"【RpaConsumer】- 任务 {task_id} 达到最大重试次数({self.max_retries})，移入失败队列"
+                    )
+                else:
+                    # 重新加入队列
+                    self.redis.lpush(f"{self.platform}:task_queue", task_id)
+                    logger.warning(
+                        f"【RpaConsumer】- 任务 {task_id} 重试次数: {retry_count}/{self.max_retries}"
+                    )
+                raise
+
+        except Exception as e:
+            logger.error(f"【RpaConsumer】- 处理任务 {task_id} 时发生错误: {str(e)}")
+            await self.update_task_status(task_id, "failed", str(e))
+
+        finally:
+            # 清理临时文件
+            if video_path and os.path.exists(video_path):
+                try:
+                    os.remove(video_path)
+                    logger.info(f"【RpaConsumer】- 清理临时文件成功: {video_path}")
+                except Exception as e:
+                    logger.error(f"清理临时文件失败 {video_path}: {str(e)}")
+            # 释放任务锁
+            await self.release_lock(task_id)
 
     async def run(self):
         """启动消费者服务"""

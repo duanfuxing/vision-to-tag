@@ -286,12 +286,9 @@ class MiaobiConsumer:
             logger.error(f"【MiaobiConsumer】- 清理资源失败: {str(e)}")
 
     async def process_task(self, task_id: str):
-        """处理单个任务"""
         video_path = None
         start_time = time.time()
         try:
-            # 使用上下文管理器创建数据库会话
-            with SessionLocal() as db:
                 # 获取任务信息
                 task_info = None
                 retry_count = 0
